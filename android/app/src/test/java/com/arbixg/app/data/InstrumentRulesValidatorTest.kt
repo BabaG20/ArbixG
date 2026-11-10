@@ -7,7 +7,6 @@ class InstrumentRulesValidatorTest {
     private val path = listOf("USDT", "BTC", "ETH", "USDT")
     private val ids = listOf("BTC-USDT", "ETH-BTC", "ETH-USDT")
     private val now = 1_800_000_000_000L
-
     private val books = mapOf(
         "BTC-USDT" to SpotOrderBook("BTC-USDT", now, listOf(OrderBookLevel(100.0, 1.0)), listOf(OrderBookLevel(101.0, 1.0))),
         "ETH-BTC" to SpotOrderBook("ETH-BTC", now, listOf(OrderBookLevel(0.06, 10.0)), listOf(OrderBookLevel(0.061, 10.0))),
@@ -20,24 +19,27 @@ class InstrumentRulesValidatorTest {
     }
 
     private fun legs() = listOf(
-        DepthLegResult("BTC-USDT", "USDT", "BTC", 10.0, 0.09900990099009901, 0.0, 0.09900990099009901, 1),
-        DepthLegResult("ETH-BTC", "BTC", "ETH", 0.09900990099009901, 1.6231131309852297, 0.0, 1.6231131309852297, 1),
-        DepthLegResult("ETH-USDT", "ETH", "USDT", 1.6231131309852297, 11.361791916896608, 0.0, 11.361791916896608, 1)
+        DepthLegResult("BTC-USDT", "USDT", "BTC", 10.0, 0.099, 0.0, 0.099, 1, executedBaseQuantity = 0.099, quoteAmount = 10.0),
+        DepthLegResult("ETH-BTC", "BTC", "ETH", 0.099, 1.62, 0.0, 1.62, 1, executedBaseQuantity = 1.62, quoteAmount = 0.099),
+        DepthLegResult("ETH-USDT", "ETH", "USDT", 1.62, 11.34, 0.0, 11.34, 1, executedBaseQuantity = 1.62, quoteAmount = 11.34)
     )
 
-    @Test fun rejectsQuantityThatNeedsLotRoundingInsteadOfClaimingExecutable() {
+    @Test fun acceptsAlreadyRoundedExecutedQuantities() {
         val result = InstrumentRulesValidator.validate(path, ids, books, rules(), legs())
+        assertTrue(result.message, result.passed)
+        assertTrue(result.message.contains("lotSz flooring"))
+    }
+
+    @Test fun rejectsExecutedQuantityThatIsNotLotAligned() {
+        val changed = legs().toMutableList()
+        changed[0] = changed[0].copy(executedBaseQuantity = 0.09905)
+        val result = InstrumentRulesValidator.validate(path, ids, books, rules(), changed)
         assertFalse(result.passed)
-        assertTrue(result.message.contains("lotSz rounding"))
+        assertTrue(result.message.contains("lotSz"))
     }
 
     @Test fun rejectsMissingInstrumentRules() {
-        val alignedLegs = listOf(
-            legs()[0].copy(outputBeforeFee = 0.099),
-            legs()[1].copy(inputAmount = 0.099, outputBeforeFee = 1.62),
-            legs()[2].copy(inputAmount = 1.62)
-        )
-        val result = InstrumentRulesValidator.validate(path, ids, books, rules() - "ETH-BTC", alignedLegs)
+        val result = InstrumentRulesValidator.validate(path, ids, books, rules() - "ETH-BTC", legs())
         assertFalse(result.passed)
         assertTrue(result.message.contains("rules are missing"))
     }
@@ -47,12 +49,7 @@ class InstrumentRulesValidatorTest {
         changed["BTC-USDT"] = books.getValue("BTC-USDT").copy(
             asks = listOf(OrderBookLevel(101.00005, 1.0))
         )
-        val alignedLegs = listOf(
-            legs()[0].copy(outputBeforeFee = 0.099),
-            legs()[1].copy(inputAmount = 0.099, outputBeforeFee = 1.6231),
-            legs()[2].copy(inputAmount = 1.6231)
-        )
-        val result = InstrumentRulesValidator.validate(path, ids, changed, rules(), alignedLegs)
+        val result = InstrumentRulesValidator.validate(path, ids, changed, rules(), legs())
         assertFalse(result.passed)
         assertTrue(result.message.contains("tickSz"))
     }
