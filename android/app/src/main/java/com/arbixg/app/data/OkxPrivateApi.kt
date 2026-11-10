@@ -45,7 +45,9 @@ data class OkxAccountSnapshot(
     val balances: List<OkxAccountBalance>,
     val fees: List<OkxSpotFee>,
     val retrievedAtEpochMs: Long,
-    val demoMode: Boolean
+    val demoMode: Boolean,
+    /** OKX account fee charging mode: 0=received currency, 1=Spot quote currency. */
+    val feeType: String?
 )
 
 /**
@@ -81,25 +83,37 @@ class OkxPrivateApi(
                     }
                 }
             }
-            val fees = instrumentIds.distinct().map { instrumentId ->
-                val path = "/api/v5/account/trade-fee?instType=SPOT&instId=$instrumentId"
-                val item = get(path, demoMode).getJSONArray("data").optJSONObject(0)
-                    ?: error("OKX fee response is empty for $instrumentId.")
-                OkxSpotFee(
-                    instrumentId = instrumentId,
-                    makerRate = item.optString("maker"),
-                    takerRate = item.optString("taker"),
-                    feeCurrency = item.optString("feeCcy").takeIf { it.isNotBlank() },
-                    level = item.optString("level").takeIf { it.isNotBlank() }
-                )
+            // OKX allows up to five Spot instruments per fee-rate request.
+            // Batch requests to respect the account endpoint's rate limit.
+            val requestedIds = instrumentIds.distinct()
+            val feesById = LinkedHashMap<String, OkxSpotFee>()
+            requestedIds.chunked(5).forEach { batch ->
+                val path = "/api/v5/account/trade-fee?instType=SPOT&instId=${batch.joinToString(",")}"
+                val data = get(path, demoMode).getJSONArray("data")
+                for (i in 0 until data.length()) {
+                    val item = data.getJSONObject(i)
+                    val instrumentId = item.optString("instId").takeIf { it.isNotBlank() }
+                        ?: if (batch.size == 1) batch.first() else error("OKX fee response omitted instId for a batch request.")
+                    feesById[instrumentId] = OkxSpotFee(
+                        instrumentId = instrumentId,
+                        makerRate = item.optString("maker"),
+                        takerRate = item.optString("taker"),
+                        feeCurrency = item.optString("feeCcy").takeIf { it.isNotBlank() },
+                        level = item.optString("level").takeIf { it.isNotBlank() }
+                    )
+                }
             }
+            val missingFeeIds = requestedIds.filterNot { feesById.containsKey(it) }
+            require(missingFeeIds.isEmpty()) { "OKX fee rates missing for: ${missingFeeIds.joinToString()}" }
+            val fees = requestedIds.map { feesById.getValue(it) }
             OkxAccountSnapshot(
                 uid = config.optString("uid").takeIf { it.isNotBlank() },
                 accountLevel = config.optString("acctLv").takeIf { it.isNotBlank() },
                 balances = balances,
                 fees = fees,
                 retrievedAtEpochMs = clock(),
-                demoMode = demoMode
+                demoMode = demoMode,
+                feeType = config.optString("feeType").takeIf { it == "0" || it == "1" }
             )
         }
 
