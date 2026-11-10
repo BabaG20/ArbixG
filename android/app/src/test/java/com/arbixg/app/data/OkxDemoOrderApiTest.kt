@@ -126,6 +126,22 @@ class OkxDemoOrderApiTest {
     }
 
     @Test
+    fun acceptsSparsePlaceAcknowledgementWithoutInstrumentField() = runBlocking {
+        val transport = RecordingTransport(
+            OkxDemoHttpResponse(
+                200,
+                """{"code":"0","data":[{"ordId":"987654","clOrdId":"CycleLeg0001","sCode":"0","sMsg":""}]}"""
+            )
+        )
+        val result = OkxDemoOrderApi(credentials, { 1_767_225_600_000L }, transport)
+            .placeLimitOrder(OkxDemoLimitOrder("BTC-USDT", "buy", "60000", "0.001", "CycleLeg0001"))
+
+        assertEquals("BTC-USDT", result.instrumentId)
+        assertEquals("CycleLeg0001", result.clientOrderId)
+        assertEquals("987654", result.orderId)
+    }
+
+    @Test
     fun rejectsExchangeApiErrorsAndHttpFailures() = runBlocking {
         val apiErrorTransport = RecordingTransport(
             OkxDemoHttpResponse(200, """{"code":"51000","msg":"Parameter error","data":[]}""")
