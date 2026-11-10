@@ -5,9 +5,9 @@ const now = 1_800_000_000_000;
 const opportunity = { legs: [{ instId: 'BTC-USDT', side: 'buy-base' }, { instId: 'BTC-ETH', side: 'sell-base' }, { instId: 'ETH-USDT', side: 'sell-base' }] };
 const instruments = ['BTC-USDT', 'BTC-ETH', 'ETH-USDT'].map(instId => ({ instId, lotSz: '0.0001', minSz: '0.0001', tickSz: '0.01' }));
 const books = [
- { instId: 'BTC-USDT', ts: String(now), asks: [['100', '2']], bids: [['99', '2']] },
- { instId: 'BTC-ETH', ts: String(now), asks: [['16', '2']], bids: [['15', '2']] },
- { instId: 'ETH-USDT', ts: String(now), asks: [['7', '40']], bids: [['6', '40']] }
+ { instId: 'BTC-USDT', ts: String(now), asks: [['100', '20']], bids: [['99', '20']] },
+ { instId: 'BTC-ETH', ts: String(now), asks: [['16', '20']], bids: [['15', '20']] },
+ { instId: 'ETH-USDT', ts: String(now), asks: [['7', '400']], bids: [['6', '400']] }
 ];
 test('simulates three legs using book depth and confirmed fee', () => {
  const result = simulateTriangularRoute({ opportunity, books, instruments, startAmount: 1000, feeRate: 0.001, now });
