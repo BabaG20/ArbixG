@@ -48,7 +48,7 @@
 - [ ] Provide clear pause/stop controls and visible Demo/Live environment indicator.
 - [ ] Keep API credentials in Android Keystore; require least-privilege API permissions and no withdrawal permission.
 - [ ] Redact API keys, signatures, passphrases and sensitive account data from logs.
-- [ ] Complete Room v1-to-v2 migration tests and verify existing trade history is preserved.
+- [ ] Complete Room v1-to-v3 migration tests and verify existing trade history and order journal are preserved.
 - [ ] Verify backup/restore and order journal recovery.
 - [ ] Configure user-owned release signing securely; never commit signing keys or secrets to this public repository.
 - [ ] Build signed release APK and verify install/update on a physical Android phone without USB dependency for future updates.
@@ -63,7 +63,8 @@
 
 ## Current known status (as of 2026-11-10)
 - Existing work includes market catalogue/cycle discovery, public depth simulation, basic instrument rounding/validation, authenticated read-only OKX account/fee/balance queries, fee-mode simulation foundation, fill reconciliation, Room order journal/migration foundation, and a prototype in-memory risk guard.
-- The risk guard is not yet wired to the trading/simulation path and is not durable. It does not authorize execution.
+- Room-backed risk reservations, daily-loss state, durable kill switch storage, and a dashboard risk-control panel have been implemented; persistence and v1/v2 migration tests have been added but still require CI verification.
+- The persistent risk manager is not yet wired into a complete cycle execution path and does not authorize execution.
 - No order submission/cancel/amend or live trading is implemented.
 - Initial 10 USDT is a simulation input only; no funds have been invested or traded.
 - Latest known branch head at checklist creation: `b49dc00ca96d820c2aa8bedb7a9bbd1d3e9371a5`. Verify current CI before treating the build as passing.
