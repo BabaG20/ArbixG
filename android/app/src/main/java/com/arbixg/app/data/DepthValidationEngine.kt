@@ -21,7 +21,8 @@ data class DepthValidationItem(
     val grossReturnPct: Double?,
     val netReturnPct: Double?,
     val message: String,
-    val dustSummary: String? = null
+    val dustSummary: String? = null,
+    val feeModel: String? = null
 )
 
 /**
@@ -43,12 +44,18 @@ class DepthValidationEngine(
         candidates: List<TriangularCandidate>,
         startAmountUsdt: Double = 10.0,
         feeRate: Double? = null,
+        feeRatesByInstrument: Map<String, Double>? = null,
+        feeType: Int? = null,
         now: Long = System.currentTimeMillis(),
         maxBookAgeMs: Long = 2_000L,
         instrumentRules: Map<String, SpotInstrumentRules> = emptyMap()
     ): List<DepthValidationItem> {
         require(startAmountUsdt.isFinite() && startAmountUsdt > 0.0)
         require(feeRate == null || (feeRate.isFinite() && feeRate >= 0.0 && feeRate < 1.0))
+        feeRatesByInstrument?.values?.forEach { rate ->
+            require(rate.isFinite() && rate >= 0.0 && rate < 1.0) { "Each instrument fee rate must be between 0 and 1." }
+        }
+        require(feeType == null || feeType in 0..1) { "OKX feeType must be 0 or 1." }
 
         val selected = candidates.asSequence()
             .filter { it.path.size == 4 && it.path.first() == "USDT" && it.path.last() == "USDT" }
@@ -90,12 +97,19 @@ class DepthValidationEngine(
                 MarketDepth(rule, parts[0], parts[1], book)
             }
             runCatching {
+                val candidateFeeRates = feeRatesByInstrument
+                    ?.filterKeys { it in candidate.instruments }
+                    ?.takeIf { feeType in 0..1 && candidate.instruments.all(it::containsKey) }
+                val useAccountFees = candidateFeeRates != null
+                val useLegacyFee = !useAccountFees && feeRate != null
                 val result = OrderBookDepthSimulator.simulateCycle(
                     path = candidate.path,
                     marketIds = candidate.instruments,
                     markets = marketDepths,
                     startAmount = startAmountUsdt,
-                    feeRate = feeRate ?: 0.0,
+                    feeRate = if (useAccountFees) 0.0 else (feeRate ?: 0.0),
+                    feeRatesByInstrument = candidateFeeRates,
+                    feeType = if (useAccountFees) feeType!! else 0,
                     now = now,
                     maxBookAgeMs = maxBookAgeMs,
                     instrumentRules = instrumentRules
@@ -115,12 +129,17 @@ class DepthValidationEngine(
                 } else {
                     DepthValidationItem(
                         candidate = candidate,
-                        status = if (feeRate == null) DepthValidationStatus.DEPTH_PASSED_WITH_RULES_GROSS_ONLY
+                        status = if (!useAccountFees && !useLegacyFee) DepthValidationStatus.DEPTH_PASSED_WITH_RULES_GROSS_ONLY
                             else DepthValidationStatus.DEPTH_PASSED_WITH_RULES_AND_FEE,
                         finalAmount = result.finalAmount,
                         grossReturnPct = result.grossReturnPct,
-                        netReturnPct = if (feeRate == null) null else result.netReturnPct,
+                        netReturnPct = if (useAccountFees || useLegacyFee) result.netReturnPct else null,
                         message = rulesCheck.message,
+                        feeModel = when {
+                            useAccountFees -> "OKX per-instrument taker rates; account feeType=$feeType"
+                            useLegacyFee -> "Uniform supplied fee rate; not account-verified"
+                            else -> null
+                        },
                         dustSummary = result.legs.filter { it.dustAmount > 0.0 }
                             .joinToString(" · ") { "${it.instrumentId}: ${String.format("%.8f", it.dustAmount)} ${it.dustCurrency}" }
                             .ifBlank { "No residual dust at the simulated precision." }
