@@ -91,11 +91,16 @@ private class UrlConnectionOkxDemoTransport(
     }
 }
 
+interface OkxDemoOrderGateway {
+    override suspend fun placeLimitOrder(order: OkxDemoLimitOrder): OkxDemoOrderResult
+    suspend fun queryByClientOrderId(instrumentId: String, clientOrderId: String): OkxDemoOrderResult
+}
+
 class OkxDemoOrderApi(
     private val credentials: OkxCredentials,
     private val clock: () -> Long = System::currentTimeMillis,
     private val transport: OkxDemoHttpTransport = UrlConnectionOkxDemoTransport(8_000, 12_000)
-) {
+) : OkxDemoOrderGateway {
     suspend fun placeLimitOrder(order: OkxDemoLimitOrder): OkxDemoOrderResult = withContext(Dispatchers.IO) {
         val body = JSONObject()
             .put("instId", order.instrumentId)
@@ -111,7 +116,7 @@ class OkxDemoOrderApi(
     }
 
     /** Query by the durable client ID after a timeout or ambiguous submit response. */
-    suspend fun queryByClientOrderId(
+    override suspend fun queryByClientOrderId(
         instrumentId: String,
         clientOrderId: String
     ): OkxDemoOrderResult = withContext(Dispatchers.IO) {
