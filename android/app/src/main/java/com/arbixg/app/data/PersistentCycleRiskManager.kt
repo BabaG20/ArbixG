@@ -28,7 +28,8 @@ class PersistentCycleRiskManager(
     ): RiskDecision = database.withTransaction {
         val now = clock()
         val today = utcDate(now)
-        val state = dao.getState()?.let {
+        val previousState = dao.getState()
+        val state = previousState?.let {
             if (it.utcDate == today) it else it.copy(
                 utcDate = today,
                 dailyRealizedLoss = "0",
@@ -36,7 +37,7 @@ class PersistentCycleRiskManager(
             )
         } ?: RiskStateEntity(utcDate = today, dailyRealizedLoss = "0", killSwitchEnabled = false, updatedAtEpochMs = now)
 
-        if (state.utcDate != dao.getState()?.utcDate) dao.upsertState(state)
+        if (previousState == null || previousState.utcDate != today) dao.upsertState(state)
         if (limits.killSwitchEnabled || state.killSwitchEnabled) return@withTransaction denied("Kill switch is enabled.")
         if (cycleId.isBlank() || startCurrency.isBlank()) return@withTransaction denied("Cycle ID and start currency are required.")
         if (dao.getReservationsForCycle(cycleId).isNotEmpty()) return@withTransaction denied("Cycle already has an active reservation.")
@@ -56,6 +57,9 @@ class PersistentCycleRiskManager(
         if (requiredFunds.isEmpty() || requiredFunds.any { (currency, amount) ->
                 currency.isBlank() || amount <= BigDecimal.ZERO
             }) return@withTransaction denied("Every required currency amount must be positive.")
+        if ((requiredFunds[startCurrency] ?: BigDecimal.ZERO) < startAmount) {
+            return@withTransaction denied("The starting currency reservation is below the cycle start amount.")
+        }
 
         for ((currency, amount) in requiredFunds) {
             val balance = balances[currency]
@@ -97,7 +101,8 @@ class PersistentCycleRiskManager(
         val previous = dao.getState()
         val baseLoss = if (previous?.utcDate == today) BigDecimal(previous.dailyRealizedLoss) else BigDecimal.ZERO
         val totalLoss = baseLoss + loss
-        val killSwitch = previous?.killSwitchEnabled ?: false
+        val killSwitch = (previous?.killSwitchEnabled ?: false) ||
+            totalLoss >= limits.maxDailyRealizedLoss
         dao.upsertState(
             RiskStateEntity(
                 utcDate = today,
