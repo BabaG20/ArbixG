@@ -50,7 +50,7 @@ data class OrderIntentEntity(
         const val RECONCILED = "RECONCILED"
         const val FAILED = "FAILED"
 
-        val RECOVERABLE_STATES = listOf(SUBMITTING, UNKNOWN, ACKNOWLEDGED)
+        val RECOVERABLE_STATES = listOf(PREPARED, SUBMITTING, UNKNOWN)
         private val VALID_STATES = setOf(PREPARED, SUBMITTING, ACKNOWLEDGED, UNKNOWN, RECONCILED, FAILED)
     }
 }
