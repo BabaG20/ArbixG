@@ -1,6 +1,7 @@
 package com.arbixg.app.data
 
 import android.content.Context
+import android.database.sqlite.SQLiteDatabase
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import java.math.BigDecimal
@@ -126,6 +127,64 @@ class PersistentCycleRiskManagerTest {
         assertEquals(1, decisions.count { it.approved })
         assertEquals(1, manager.activeReservations().size)
         database.close()
+    }
+
+    @Test
+    fun versionTwoMigrationPreservesTradeAndOrderHistory() = runBlocking {
+        val file = context.getDatabasePath(databaseName)
+        file.parentFile?.mkdirs()
+        val oldDb = SQLiteDatabase.openOrCreateDatabase(file, null)
+        oldDb.execSQL(
+            """CREATE TABLE trade_records (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                mode TEXT NOT NULL,
+                route TEXT NOT NULL,
+                status TEXT NOT NULL,
+                createdAtEpochMs INTEGER NOT NULL,
+                realizedPnl REAL
+            )"""
+        )
+        oldDb.execSQL(
+            """CREATE TABLE tracked_orders (
+                orderId TEXT NOT NULL PRIMARY KEY,
+                instrumentId TEXT NOT NULL,
+                status TEXT NOT NULL,
+                requestedSize TEXT NOT NULL,
+                cumulativeFilledSize TEXT NOT NULL,
+                remainingSize TEXT NOT NULL,
+                averageFillPrice TEXT,
+                cumulativeFee TEXT NOT NULL,
+                feeCurrency TEXT,
+                lastExchangeUpdateEpochMs INTEGER NOT NULL,
+                locallyUpdatedAtEpochMs INTEGER NOT NULL
+            )"""
+        )
+        oldDb.execSQL(
+            "CREATE INDEX index_tracked_orders_locallyUpdatedAtEpochMs ON tracked_orders(locallyUpdatedAtEpochMs)"
+        )
+        oldDb.execSQL(
+            "INSERT INTO trade_records(mode, route, status, createdAtEpochMs, realizedPnl) VALUES(?, ?, ?, ?, ?)",
+            arrayOf("DEMO", "USDT-BTC-ETH-USDT", "FILLED", now, 0.25)
+        )
+        oldDb.execSQL(
+            """INSERT INTO tracked_orders(
+                orderId, instrumentId, status, requestedSize, cumulativeFilledSize,
+                remainingSize, averageFillPrice, cumulativeFee, feeCurrency,
+                lastExchangeUpdateEpochMs, locallyUpdatedAtEpochMs
+            ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            arrayOf("order-1", "BTC-USDT", "FILLED", "0.01", "0.01", "0", "65000", "0.00001", "BTC", now, now)
+        )
+        oldDb.version = 2
+        oldDb.close()
+
+        val migrated = db()
+        val trades = migrated.tradeRecordDao().getAllForBackup()
+        val order = migrated.trackedOrderDao().getByOrderId("order-1")
+        assertEquals(1, trades.size)
+        assertEquals("USDT-BTC-ETH-USDT", trades.single().route)
+        assertEquals("FILLED", order?.status)
+        assertTrue(migrated.riskStateDao().getState() == null)
+        migrated.close()
     }
 
     @Test
