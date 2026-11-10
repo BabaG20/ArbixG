@@ -42,9 +42,11 @@ class InstrumentRulesValidatorTest {
         changed["BTC-USDT"] = books.getValue("BTC-USDT").copy(
             asks = listOf(OrderBookLevel(101.00005, 1.0))
         )
-        val alignedLegs = legs().mapIndexed { index, leg ->
-            if (index == 0) leg.copy(outputBeforeFee = 0.099) else leg
-        }
+        val alignedLegs = listOf(
+            legs()[0].copy(outputBeforeFee = 0.099),
+            legs()[1].copy(inputAmount = 0.099, outputBeforeFee = 1.6231),
+            legs()[2].copy(inputAmount = 1.6231)
+        )
         val result = InstrumentRulesValidator.validate(path, ids, changed, rules(), alignedLegs)
         assertFalse(result.passed)
         assertTrue(result.message.contains("tickSz"))
