@@ -146,7 +146,8 @@ private fun ArbixGApp() {
                         }
                     }
                 }
-                BackupPanel()\n                Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(16.dp)) {
+                BackupPanel()
+                Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(16.dp)) {
                     Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text("MARKET-WIDE SCAN", color = Muted, fontSize = 11.sp, fontWeight = FontWeight.Bold)
