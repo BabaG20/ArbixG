@@ -26,6 +26,7 @@ test('connects, subscribes and forwards market data', () => {
 test('sends heartbeat ping after inactivity', () => {
   FakeSocket.instances = []; const h = makeHarness(); h.stream.start();
   const socket = FakeSocket.instances.at(-1); socket.open();
+  h.stream.lastMessageAt = Date.now() - 30_000;
   const heartbeat = h.timers.find(timer => timer.ms === 25_000);
   assert.ok(heartbeat); heartbeat.fn(); assert.ok(socket.sent.includes('ping')); h.stream.stop();
 });
