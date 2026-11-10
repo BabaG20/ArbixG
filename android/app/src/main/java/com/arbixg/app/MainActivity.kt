@@ -192,7 +192,9 @@ private fun ArbixGApp() {
                 }
                 BackupPanel()
                 OkxAccountPanel(
-                    instrumentIds = snapshot?.candidates.orEmpty().take(10).flatMap { it.instruments }.distinct(),
+                    instrumentIds = snapshot?.candidates.orEmpty()
+                        .filter { it.path.firstOrNull() == "USDT" && it.path.lastOrNull() == "USDT" }
+                        .take(10).flatMap { it.instruments }.distinct(),
                     onAccountSnapshot = { accountSnapshot = it }
                 )
                 Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(16.dp)) {
