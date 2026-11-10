@@ -22,7 +22,7 @@ export function simulateTriangularRoute({ opportunity, books, instruments, start
   if (!amount) throw new RangeError('startAmount must be positive');
   if (feeRate === null || feeRate === undefined || feeRate === '') throw new RangeError('A confirmed feeRate between 0 and 1 is required');
   const fee = Number(feeRate);
-  if (!Number.isFinite(fee) || fee < 0 || fee >= 1 throw new RangeError('A confirmed feeRate between 0 and 1 is required');
+  if (!Number.isFinite(fee) || fee < 0 || fee >= 1) throw new RangeError('A confirmed feeRate between 0 and 1 is required');
   if (!opportunity || !Array.isArray(opportunity.legs) || opportunity.legs.length !== 3) throw new TypeError('opportunity must contain exactly three legs');
   const bookById = new Map((books || []).map(book => [book.instId, book]));
   const instrumentById = new Map((instruments || []).map(item => [item.instId, item]));
