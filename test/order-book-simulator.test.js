@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { simulateTriangularRoute } from '../src/core/order-book-simulator.js';
 const now = 1_800_000_000_000;
 const opportunity = { legs: [{ instId: 'BTC-USDT', side: 'buy-base' }, { instId: 'BTC-ETH', side: 'sell-base' }, { instId: 'ETH-USDT', side: 'sell-base' }] };
-const instruments = ['BTC-USDT', 'BTC-ETH', 'ETH-USDT'].map(instId => ({ instId, lotSz: '0.0001', minSz: '0.0001', tickSz: '0.01' }));
+const instruments = ['BTC-USDT', 'BTC-ETH', 'ETH-USDT'].map(instId => ({ instId, lotSz: '0.000001', minSz: '0.000001', tickSz: '0.01' }));
 const books = [
  { instId: 'BTC-USDT', ts: String(now), asks: [['100', '20']], bids: [['99', '20']] },
  { instId: 'BTC-ETH', ts: String(now), asks: [['16', '20']], bids: [['15', '20']] },
