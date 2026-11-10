@@ -130,6 +130,52 @@ class PersistentCycleRiskManagerTest {
     }
 
     @Test
+    fun versionOneMigrationPreservesTradeHistoryAndCreatesOrderAndRiskTables() = runBlocking {
+        val file = context.getDatabasePath(databaseName)
+        file.parentFile?.mkdirs()
+        val oldDb = SQLiteDatabase.openOrCreateDatabase(file, null)
+        oldDb.execSQL(
+            """CREATE TABLE trade_records (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                mode TEXT NOT NULL,
+                route TEXT NOT NULL,
+                status TEXT NOT NULL,
+                createdAtEpochMs INTEGER NOT NULL,
+                realizedPnl REAL
+            )"""
+        )
+        oldDb.execSQL(
+            "INSERT INTO trade_records(mode, route, status, createdAtEpochMs, realizedPnl) VALUES(?, ?, ?, ?, ?)",
+            arrayOf("DEMO", "USDT-ETH-BTC-USDT", "COMPLETED", now, 0.5)
+        )
+        oldDb.version = 1
+        oldDb.close()
+
+        val migrated = db()
+        val trades = migrated.tradeRecordDao().getAllForBackup()
+        assertEquals(1, trades.size)
+        assertEquals("USDT-ETH-BTC-USDT", trades.single().route)
+        migrated.trackedOrderDao().upsert(
+            TrackedOrderEntity(
+                orderId = "after-v1-migration",
+                instrumentId = "ETH-USDT",
+                status = "OPEN",
+                requestedSize = "0.1",
+                cumulativeFilledSize = "0",
+                remainingSize = "0.1",
+                averageFillPrice = null,
+                cumulativeFee = "0",
+                feeCurrency = null,
+                lastExchangeUpdateEpochMs = now,
+                locallyUpdatedAtEpochMs = now
+            )
+        )
+        assertEquals("OPEN", migrated.trackedOrderDao().getByOrderId("after-v1-migration")?.status)
+        assertTrue(migrated.riskStateDao().getState() == null)
+        migrated.close()
+    }
+
+    @Test
     fun versionTwoMigrationPreservesTradeAndOrderHistory() = runBlocking {
         val file = context.getDatabasePath(databaseName)
         file.parentFile?.mkdirs()
