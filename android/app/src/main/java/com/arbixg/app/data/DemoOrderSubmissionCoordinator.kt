@@ -11,7 +11,7 @@ import kotlinx.coroutines.CancellationException
  */
 class DemoOrderSubmissionCoordinator(
     private val journal: OrderIntentDao,
-    private val demoApi: OkxDemoOrderApi,
+    private val demoApi: OkxDemoOrderGateway,
     private val clock: () -> Long = System::currentTimeMillis
 ) {
     sealed interface Result {
