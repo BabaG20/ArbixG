@@ -42,17 +42,29 @@ fun OkxDemoOrderResult.toOrderSnapshot(): OkxOrderSnapshot {
     val average = raw.optString("avgPx")
     val fee = raw.optString("fee")
     val updateTime = raw.optString("uTime").toLongOrNull() ?: 0L
-    require(requested.toBigDecimalOrNull()?.signum() == 1) {
+    val requestedValue = requested.toBigDecimalOrNull()
+    val filledValue = filled.toBigDecimalOrNull()
+    val averageValue = average.toBigDecimalOrNull()
+    val feeValue = fee.toBigDecimalOrNull()
+    require(requestedValue?.signum() == 1) {
         "OKX order query omitted a valid requested size."
     }
-    require(filled.toBigDecimalOrNull() != null) {
+    require(filledValue != null && filledValue.signum() >= 0 && filledValue <= requestedValue) {
         "OKX order query omitted a valid cumulative filled size."
     }
-    require(average.toBigDecimalOrNull() != null) {
-        "OKX order query omitted a valid average fill price."
-    }
-    require(fee.toBigDecimalOrNull() != null) {
-        "OKX order query omitted the cumulative fee; realized proceeds cannot be trusted."
+    // OKX may return empty avgPx/fee/feeCcy while an order has no fills.
+    // Once any quantity is filled, a positive average price and explicit fee are mandatory.
+    if (filledValue.signum() > 0) {
+        require(averageValue != null && averageValue.signum() > 0) {
+            "OKX order query omitted a valid average fill price."
+        }
+        require(feeValue != null) {
+            "OKX order query omitted the cumulative fee; realized proceeds cannot be trusted."
+        }
+    } else {
+        require(average.isBlank() || averageValue?.signum() == 0) {
+            "Unfilled order unexpectedly reported an average fill price."
+        }
     }
     require(updateTime > 0L) { "OKX order query omitted a valid exchange update timestamp." }
     return OkxOrderSnapshot(
@@ -62,7 +74,7 @@ fun OkxDemoOrderResult.toOrderSnapshot(): OkxOrderSnapshot {
         requestedSize = requested,
         cumulativeFilledSize = filled,
         averageFillPrice = average,
-        cumulativeFee = fee,
+        cumulativeFee = feeValue?.toPlainString() ?: "0",
         feeCurrency = raw.optString("feeCcy").takeIf { it.isNotBlank() },
         updateTimeEpochMs = updateTime
     )
