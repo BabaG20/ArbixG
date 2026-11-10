@@ -32,7 +32,12 @@ class InstrumentRulesValidatorTest {
     }
 
     @Test fun rejectsMissingInstrumentRules() {
-        val result = InstrumentRulesValidator.validate(path, ids, books, rules() - "ETH-BTC", legs())
+        val alignedLegs = listOf(
+            legs()[0].copy(outputBeforeFee = 0.099),
+            legs()[1].copy(inputAmount = 0.099, outputBeforeFee = 1.62),
+            legs()[2].copy(inputAmount = 1.62)
+        )
+        val result = InstrumentRulesValidator.validate(path, ids, books, rules() - "ETH-BTC", alignedLegs)
         assertFalse(result.passed)
         assertTrue(result.message.contains("rules are missing"))
     }
