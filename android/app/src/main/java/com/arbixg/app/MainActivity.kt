@@ -38,6 +38,10 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
 import com.arbixg.app.data.MarketSnapshot
 import com.arbixg.app.data.OkxMarketRepository
+import com.arbixg.app.data.OkxOrderBookRepository
+import com.arbixg.app.data.DepthValidationEngine
+import com.arbixg.app.data.DepthValidationItem
+import com.arbixg.app.data.DepthValidationStatus
 import com.arbixg.app.data.TriangularCandidate
 import com.arbixg.app.update.DirectUpdater
 import com.arbixg.app.backup.BackupPanel
@@ -62,6 +66,10 @@ private val Green = Color(0xFF79D6A3)
 @Composable
 private fun ArbixGApp() {
     val repository = remember { OkxMarketRepository() }
+    val orderBookRepository = remember { OkxOrderBookRepository() }
+    val depthEngine = remember {
+        DepthValidationEngine(loadOrderBook = { instrumentId -> orderBookRepository.load(instrumentId) })
+    }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var updateRelease by remember { mutableStateOf<DirectUpdater.Release?>(null) }
@@ -70,6 +78,8 @@ private fun ArbixGApp() {
     var connection by remember { mutableStateOf("CONNECTING") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var lastSuccessAt by remember { mutableStateOf<Long?>(null) }
+    var depthValidation by remember { mutableStateOf<List<DepthValidationItem>>(emptyList()) }
+    var depthMessage by remember { mutableStateOf("Waiting for the first live market snapshot.") }
 
     LaunchedEffect(context) {
         when (val result = DirectUpdater.check(context)) {
@@ -92,6 +102,21 @@ private fun ArbixGApp() {
                 connection = "LIVE SNAPSHOT"
                 errorMessage = null
                 lastSuccessAt = System.currentTimeMillis()
+                depthMessage = "Checking fresh order-book depth for the top USDT cycles…"
+                try {
+                    depthValidation = depthEngine.validateUsdtCandidates(
+                        candidates = fresh.candidates,
+                        startAmountUsdt = 10.0
+                    )
+                    depthMessage = if (depthValidation.isEmpty()) {
+                        "No USDT-starting candidate selected for depth validation."
+                    } else {
+                        "Depth checked ${depthValidation.size} USDT cycle(s) using public L2 books; fees and lot rules are not yet verified."
+                    }
+                } catch (depthError: Exception) {
+                    depthValidation = emptyList()
+                    depthMessage = "Depth validation unavailable: ${depthError.message ?: "unknown error"}"
+                }
                 retryDelayMs = 15_000L
                 waitMs = 15_000L
             } catch (error: Exception) {
@@ -169,6 +194,13 @@ private fun ArbixGApp() {
                         }
                     }
                 }
+                Text("ORDER-BOOK DEPTH VALIDATION · 10 USDT", color = Gold, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(14.dp)) {
+                    Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                        Text(depthMessage, color = Muted, fontSize = 11.sp)
+                        Text("Public order books only · max 10 USDT cycles · max 4 concurrent requests · no orders sent", color = Muted, fontSize = 9.sp)
+                    }
+                }
                 Text("TOP TRIANGULAR CANDIDATES", color = Muted, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 val candidates = snapshot?.candidates.orEmpty()
                 if (snapshot == null) {
@@ -192,7 +224,7 @@ private fun ArbixGApp() {
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         items(candidates, key = { it.path.joinToString(">") }) { candidate ->
-                            CandidateCard(candidate)
+                            CandidateCard(candidate, depthValidation.firstOrNull { it.candidate.path == candidate.path && it.candidate.instruments == candidate.instruments })
                         }
                     }
                 }
@@ -203,7 +235,8 @@ private fun ArbixGApp() {
                         StatusLine("Ticker freshness", "Rejects data older than 60 seconds")
                         StatusLine("Instrument rules", "Lot / min size / tick size retained")
                         StatusLine("Candidate status", "Gross only · unverified")
-                        StatusLine("Order-book depth / fees", "Not validated")
+                        StatusLine("Order-book depth", if (depthValidation.isNotEmpty()) "Checked for selected USDT cycles" else "Not yet checked")
+                        StatusLine("Fees / lot rules", "Not verified · no executable profit")
                         StatusLine("Demo / live orders", "Not connected · locked")
                         StatusLine("Automatic trading", "Disabled")
                     }
@@ -223,7 +256,7 @@ private fun Metric(label: String, value: String) {
 }
 
 @Composable
-private fun CandidateCard(candidate: TriangularCandidate) {
+private fun CandidateCard(candidate: TriangularCandidate, depth: DepthValidationItem?) {
     Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(13.dp)) {
         Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -232,7 +265,23 @@ private fun CandidateCard(candidate: TriangularCandidate) {
                 Text(String.format("%.4f%% gross", candidate.grossProfitPct), color = Green, fontSize = 12.sp, fontWeight = FontWeight.Bold)
             }
             Text(candidate.instruments.joinToString("  ·  "), color = Muted, fontSize = 10.sp)
-            Text("Needs order-book, fee and balance validation", color = Gold, fontSize = 9.sp)
+            when (depth?.status) {
+                DepthValidationStatus.DEPTH_PASSED_GROSS_ONLY -> {
+                    Text("DEPTH PASSED · GROSS ONLY", color = Green, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    Text("10 USDT → ${String.format("%.8f", depth.finalAmount ?: 0.0)} USDT · gross ${String.format("%.4f", depth.grossReturnPct ?: 0.0)}%", color = Color.White, fontSize = 10.sp)
+                    Text("Fees, lot/minimum rules and account balance are not verified. Not executable profit.", color = Gold, fontSize = 9.sp)
+                }
+                DepthValidationStatus.DEPTH_PASSED_WITH_FEE -> {
+                    Text("DEPTH PASSED · SUPPLIED FEE ONLY", color = Green, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    Text("Final ${String.format("%.8f", depth.finalAmount ?: 0.0)} USDT · net ${String.format("%.4f", depth.netReturnPct ?: 0.0)}%", color = Color.White, fontSize = 10.sp)
+                    Text("Fee rate is user-supplied; exchange fee tier and instrument rules remain unverified.", color = Gold, fontSize = 9.sp)
+                }
+                DepthValidationStatus.DEPTH_REJECTED -> {
+                    Text("DEPTH REJECTED", color = Gold, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    Text(depth.message, color = Muted, fontSize = 9.sp)
+                }
+                null -> Text("Not depth-checked: outside the selected top USDT cycles.", color = Muted, fontSize = 9.sp)
+            }
         }
     }
 }
