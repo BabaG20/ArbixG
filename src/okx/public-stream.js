@@ -1,4 +1,4 @@
-const DEFAULT_URL = 'wss://ws.okx.com:8443/ws/v5/public';
+const DEFAULT_URL = 'wss://ws.okx.com/ws/v5/public';
 
 /**
  * Small reconnecting OKX public WebSocket client.
