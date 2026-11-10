@@ -108,4 +108,23 @@ class OrderFillReconcilerTest {
         assertTrue(runCatching { acknowledgement.toOrderSnapshot() }.isFailure)
     }
 
+
+    @Test fun acceptsOpenOrderWithNoFillAndEmptyAverageFeeFields() {
+        val raw = JSONObject(
+            """{"sz":"0.5","accFillSz":"0","avgPx":"","fee":"","feeCcy":"","uTime":"1767225600123","state":"live"}"""
+        )
+        val result = OkxDemoOrderResult(
+            orderId = "987655",
+            clientOrderId = "CycleLeg0002",
+            instrumentId = "BTC-USDT",
+            state = "live",
+            raw = raw
+        ).toOrderSnapshot()
+        assertEquals("0", result.cumulativeFilledSize)
+        assertEquals("0", result.cumulativeFee)
+        assertEquals("", result.averageFillPrice)
+        val reconciled = OrderFillReconciler.reconcile(null, result)
+        assertEquals(ReconciledOrderStatus.OPEN, reconciled.status)
+    }
+
 }
