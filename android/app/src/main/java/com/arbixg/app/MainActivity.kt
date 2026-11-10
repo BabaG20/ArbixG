@@ -198,6 +198,7 @@ private fun ArbixGApp() {
                         .take(10).flatMap { it.instruments }.distinct(),
                     onAccountSnapshot = { accountSnapshot = it }
                 )
+                RiskControlPanel()
                 Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(16.dp)) {
                     Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
