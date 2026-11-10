@@ -3,6 +3,7 @@ package com.arbixg.app.data
 import java.util.Base64
 import com.arbixg.app.security.ApiSecretVault
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.net.HttpURLConnection
@@ -87,7 +88,8 @@ class OkxPrivateApi(
             // Batch requests to respect the account endpoint's rate limit.
             val requestedIds = instrumentIds.distinct()
             val feesById = LinkedHashMap<String, OkxSpotFee>()
-            requestedIds.chunked(5).forEach { batch ->
+            requestedIds.chunked(5).forEachIndexed { batchIndex, batch ->
+                if (batchIndex > 0) delay(450L)
                 val path = "/api/v5/account/trade-fee?instType=SPOT&instId=${batch.joinToString(",")}"
                 val data = get(path, demoMode).getJSONArray("data")
                 for (i in 0 until data.length()) {
