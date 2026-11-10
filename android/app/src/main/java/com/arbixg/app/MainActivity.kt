@@ -39,7 +39,8 @@ import androidx.compose.ui.platform.LocalContext
 import com.arbixg.app.data.MarketSnapshot
 import com.arbixg.app.data.OkxMarketRepository
 import com.arbixg.app.data.TriangularCandidate
-import com.arbixg.app.update.DirectUpdater\nimport com.arbixg.app.backup.BackupPanel
+import com.arbixg.app.update.DirectUpdater
+import com.arbixg.app.backup.BackupPanel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import java.text.DateFormat
