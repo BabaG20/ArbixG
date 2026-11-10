@@ -33,8 +33,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.arbixg.app.data.MarketSnapshot
 import com.arbixg.app.data.OkxMarketRepository
-import com.arbixg.app.data.SpotTicker
+import com.arbixg.app.data.TriangularCandidate
 import kotlinx.coroutines.delay
 import java.text.DateFormat
 import java.util.Date
@@ -55,22 +56,22 @@ private val Green = Color(0xFF79D6A3)
 @Composable
 private fun ArbixGApp() {
     val repository = remember { OkxMarketRepository() }
-    var tickers by remember { mutableStateOf<List<SpotTicker>>(emptyList()) }
+    var snapshot by remember { mutableStateOf<MarketSnapshot?>(null) }
     var connection by remember { mutableStateOf("CONNECTING") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-    var lastUpdated by remember { mutableStateOf<Long?>(null) }
+    var lastSuccessAt by remember { mutableStateOf<Long?>(null) }
 
     LaunchedEffect(repository) {
         while (true) {
             try {
-                val fresh = repository.loadWatchlist()
-                tickers = fresh
-                connection = "LIVE"
+                val fresh = repository.loadAllSpotMarkets()
+                snapshot = fresh
+                connection = "LIVE SNAPSHOT"
                 errorMessage = null
-                lastUpdated = fresh.maxOfOrNull { it.timestamp }
+                lastSuccessAt = System.currentTimeMillis()
             } catch (error: Exception) {
                 connection = "DISCONNECTED"
-                errorMessage = error.message ?: "Unable to load OKX market data"
+                errorMessage = error.message ?: "Unable to load OKX markets"
             }
             delay(15_000)
         }
@@ -79,75 +80,89 @@ private fun ArbixGApp() {
     MaterialTheme {
         Surface(modifier = Modifier.fillMaxSize(), color = Ink) {
             Column(
-                modifier = Modifier.fillMaxSize().padding(18.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+                modifier = Modifier.fillMaxSize().padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Hub, contentDescription = null, tint = Gold)
-                    Column(modifier = Modifier.padding(start = 10.dp)) {
+                    Column(Modifier.padding(start = 10.dp)) {
                         Text("ArbixG", color = Color.White, fontSize = 25.sp, fontWeight = FontWeight.Bold)
-                        Text("OKX SPOT · TRIANGULAR ARBITRAGE", color = Muted, fontSize = 10.sp, letterSpacing = 1.sp)
-                    }
-                }
-                Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(18.dp)) {
-                    Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("OKX PUBLIC MARKET FEED", color = Muted, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                            Spacer(Modifier.weight(1f))
-                            Text(connection, color = if (connection == "LIVE") Green else Gold, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                        }
-                        Text(
-                            if (tickers.isNotEmpty() && connection == "LIVE") "Live prices received" else "Live prices unavailable",
-                            color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.SemiBold
-                        )
-                        Text(
-                            errorMessage ?: "Public OKX ticker endpoint · refresh every 15 seconds",
-                            color = Muted, fontSize = 12.sp
-                        )
-                        lastUpdated?.let {
-                            Text("Exchange timestamp: ${DateFormat.getDateTimeInstance().format(Date(it))}", color = Muted, fontSize = 10.sp)
-                        }
-                    }
-                }
-                Text("SPOT WATCHLIST", color = Muted, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
-                if (tickers.isEmpty()) {
-                    Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(16.dp)) {
-                        Text("Waiting for verified OKX market data. No sample prices are shown.", color = Muted, modifier = Modifier.padding(16.dp), fontSize = 13.sp)
-                    }
-                } else {
-                    LazyColumn(verticalArrangement = Arrangement.spacedBy(9.dp), modifier = Modifier.weight(1f)) {
-                        items(tickers, key = { it.instrumentId }) { ticker -> TickerCard(ticker) }
+                        Text("ALL OKX SPOT MARKETS · TRIANGULAR SCAN", color = Muted, fontSize = 9.sp, letterSpacing = 0.7.sp)
                     }
                 }
                 Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(16.dp)) {
-                    Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("ENGINE SAFETY", color = Gold, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                        StatusLine("Market prices", if (connection == "LIVE") "Live REST data" else "Unavailable")
-                        StatusLine("Order-book depth", "Not yet connected")
-                        StatusLine("Account fee tier", "Not configured")
-                        StatusLine("Automatic trading", "Disabled · safety lock")
-                        StatusLine("Mode", "Market-data preview only")
+                    Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("MARKET-WIDE SCAN", color = Muted, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Spacer(Modifier.weight(1f))
+                            Text(connection, color = if (snapshot != null && errorMessage == null) Green else Gold, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(22.dp)) {
+                            Metric("LIVE PAIRS", snapshot?.activeSpotMarkets?.toString() ?: "—")
+                            Metric("CANDIDATES", snapshot?.candidates?.size?.toString() ?: "—")
+                            Metric("SCAN", "ALL")
+                        }
+                        Text(errorMessage ?: "Full live SPOT ticker snapshot · refresh every 15 seconds", color = Muted, fontSize = 11.sp)
+                        lastSuccessAt?.let {
+                            Text("Last successful refresh: ${DateFormat.getDateTimeInstance().format(Date(it))}", color = Muted, fontSize = 9.sp)
+                        }
                     }
                 }
-                Text("Live market data is not a trade signal. No orders are sent.", color = Muted, fontSize = 10.sp, modifier = Modifier.align(Alignment.CenterHorizontally))
+                Text("TOP TRIANGULAR CANDIDATES", color = Muted, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                val candidates = snapshot?.candidates.orEmpty()
+                if (snapshot == null) {
+                    Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(14.dp)) {
+                        Text(errorMessage ?: "Loading all OKX Spot markets…", color = Muted, modifier = Modifier.padding(16.dp), fontSize = 12.sp)
+                    }
+                } else if (candidates.isEmpty()) {
+                    Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(14.dp)) {
+                        Text("No positive gross triangular candidates in this snapshot. This is not proof that no opportunity exists between refreshes.", color = Muted, modifier = Modifier.padding(16.dp), fontSize = 12.sp)
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(candidates, key = { it.path.joinToString(">") }) { candidate ->
+                            CandidateCard(candidate)
+                        }
+                    }
+                }
+                Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(14.dp)) {
+                    Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                        Text("EXECUTION GATES", color = Gold, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        StatusLine("Market discovery", "All live Spot tickers")
+                        StatusLine("Candidate status", "Gross only · unverified")
+                        StatusLine("Order-book depth / fees", "Not validated")
+                        StatusLine("Demo / live orders", "Not connected · locked")
+                        StatusLine("Automatic trading", "Disabled")
+                    }
+                }
+                Text("Gross candidates are not confirmed profit. No orders are sent.", color = Muted, fontSize = 9.sp, modifier = Modifier.align(Alignment.CenterHorizontally))
             }
         }
     }
 }
 
 @Composable
-private fun TickerCard(ticker: SpotTicker) {
-    Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(14.dp)) {
-        Column(Modifier.fillMaxWidth().padding(13.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+private fun Metric(label: String, value: String) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(value, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 19.sp)
+        Text(label, color = Muted, fontSize = 9.sp)
+    }
+}
+
+@Composable
+private fun CandidateCard(candidate: TriangularCandidate) {
+    Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(13.dp)) {
+        Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(ticker.instrumentId, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                Text(candidate.path.joinToString(" → "), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 Spacer(Modifier.weight(1f))
-                Text(ticker.last, color = Green, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                Text(String.format("%.4f%% gross", candidate.grossProfitPct), color = Green, fontSize = 12.sp, fontWeight = FontWeight.Bold)
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-                Text("Bid  ${ticker.bid}", color = Muted, fontSize = 11.sp)
-                Text("Ask  ${ticker.ask}", color = Muted, fontSize = 11.sp)
-            }
+            Text(candidate.instruments.joinToString("  ·  "), color = Muted, fontSize = 10.sp)
+            Text("Needs order-book, fee and balance validation", color = Gold, fontSize = 9.sp)
         }
     }
 }
@@ -155,7 +170,7 @@ private fun TickerCard(ticker: SpotTicker) {
 @Composable
 private fun StatusLine(label: String, value: String) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(label, color = Muted, fontSize = 12.sp)
-        Text(value, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+        Text(label, color = Muted, fontSize = 10.sp)
+        Text(value, color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Medium)
     }
 }
