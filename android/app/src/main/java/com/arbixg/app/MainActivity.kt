@@ -39,7 +39,7 @@ import androidx.compose.ui.platform.LocalContext
 import com.arbixg.app.data.MarketSnapshot
 import com.arbixg.app.data.OkxMarketRepository
 import com.arbixg.app.data.TriangularCandidate
-import com.arbixg.app.update.DirectUpdater
+import com.arbixg.app.update.DirectUpdater\nimport com.arbixg.app.backup.BackupPanel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import java.text.DateFormat
@@ -145,7 +145,7 @@ private fun ArbixGApp() {
                         }
                     }
                 }
-                Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(16.dp)) {
+                BackupPanel()\n                Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(16.dp)) {
                     Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text("MARKET-WIDE SCAN", color = Muted, fontSize = 11.sp, fontWeight = FontWeight.Bold)
