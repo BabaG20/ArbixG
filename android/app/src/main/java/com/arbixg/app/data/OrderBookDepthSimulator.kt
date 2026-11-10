@@ -18,6 +18,7 @@ data class DepthLegResult(
     val outputBeforeFee: Double,
     val feeAmount: Double,
     val outputAfterFee: Double,
+    val feeCurrency: String = toCurrency,
     val levelsConsumed: Int,
     val executedBaseQuantity: Double = 0.0,
     val quoteAmount: Double = 0.0,
@@ -53,7 +54,9 @@ object OrderBookDepthSimulator {
         feeRate: Double,
         now: Long = System.currentTimeMillis(),
         maxBookAgeMs: Long = 2_000L,
-        instrumentRules: Map<String, SpotInstrumentRules> = emptyMap()
+        instrumentRules: Map<String, SpotInstrumentRules> = emptyMap(),
+        feeRatesByInstrument: Map<String, Double>? = null,
+        feeType: Int = 0
     ): DepthCycleResult {
         require(path.size == 4 && path.first() == path.last()) { "Path must be a closed three-currency cycle." }
         require(path.take(3).distinct().size == 3) { "Cycle must contain three different currencies." }
@@ -61,10 +64,17 @@ object OrderBookDepthSimulator {
         require(startAmount.isFinite() && startAmount > 0.0) { "Starting amount must be finite and positive." }
         require(feeRate.isFinite() && feeRate >= 0.0 && feeRate < 1.0) { "Fee rate must be between 0 and 1." }
         require(maxBookAgeMs >= 0L) { "Maximum order-book age cannot be negative." }
+        require(feeType in 0..1) { "OKX Spot feeType must be 0 (received currency) or 1 (quote currency)." }
+        feeRatesByInstrument?.values?.forEach { rate ->
+            require(rate.isFinite() && rate >= 0.0 && rate < 1.0) { "Each instrument fee rate must be between 0 and 1." }
+        }
+        if (feeRatesByInstrument != null) {
+            require(marketIds.all { feeRatesByInstrument.containsKey(it) }) { "A taker fee rate is missing for a cycle instrument." }
+        }
 
-        val gross = runCycle(path, marketIds, markets, startAmount, 0.0, now, maxBookAgeMs, instrumentRules)
-        val net = if (feeRate == 0.0) gross else
-            runCycle(path, marketIds, markets, startAmount, feeRate, now, maxBookAgeMs, instrumentRules)
+        val gross = runCycle(path, marketIds, markets, startAmount, feeRate, emptyMap(), 0, now, maxBookAgeMs, instrumentRules)
+        val net = if (feeRate == 0.0 && feeRatesByInstrument.isNullOrEmpty()) gross else
+            runCycle(path, marketIds, markets, startAmount, feeRate, feeRatesByInstrument.orEmpty(), feeType, now, maxBookAgeMs, instrumentRules)
         return DepthCycleResult(
             startCurrency = path.first(),
             startAmount = startAmount,
@@ -83,7 +93,9 @@ object OrderBookDepthSimulator {
         marketIds: List<String>,
         markets: Map<String, MarketDepth>,
         startAmount: Double,
-        feeRate: Double,
+        defaultFeeRate: Double,
+        feeRatesByInstrument: Map<String, Double>,
+        feeType: Int,
         now: Long,
         maxBookAgeMs: Long,
         rules: Map<String, SpotInstrumentRules>
@@ -106,6 +118,7 @@ object OrderBookDepthSimulator {
                     (from == market.quoteCurrency && to == market.baseCurrency)
             ) { "Instrument $id cannot convert $from to $to." }
 
+            val feeRate = feeRatesByInstrument[id] ?: defaultFeeRate
             val rule = rules[id]
             val lot = rule?.lotSize?.toBigDecimalOrNull()?.takeIf { it > BigDecimal.ZERO }
             val minimum = rule?.minimumSize?.toBigDecimalOrNull()?.takeIf { it > BigDecimal.ZERO }
@@ -127,7 +140,10 @@ object OrderBookDepthSimulator {
                     levels = levelsNeededForSell(baseQty, market.orderBook.bids)
                 )
             } else {
-                val requestedQuote = BigDecimal.valueOf(amount)
+                // With feeType=1, OKX charges Spot fees in quote currency. Reserve
+                // the fee from the quote budget before consuming asks.
+                val quoteTradeBudget = if (feeType == 1) amount / (1.0 + feeRate) else amount
+                val requestedQuote = BigDecimal.valueOf(quoteTradeBudget)
                 val affordableBase = affordableBase(requestedQuote.toDouble(), market.orderBook.asks, id)
                 val affordable = BigDecimal.valueOf(affordableBase)
                 val executedBase = lot?.let { floorToStep(affordable, it) } ?: affordable
@@ -151,8 +167,10 @@ object OrderBookDepthSimulator {
                 )
             }
 
-            val fee = conversion.output * feeRate
-            val afterFee = conversion.output - fee
+            val quoteFeeOnBuy = feeType == 1 && from == market.quoteCurrency
+            val fee = if (quoteFeeOnBuy) conversion.quoteAmount * feeRate else conversion.output * feeRate
+            val afterFee = if (quoteFeeOnBuy) conversion.output else conversion.output - fee
+            val feeCurrency = if (feeType == 1) market.quoteCurrency else to
             require(afterFee.isFinite() && afterFee > 0.0) { "Invalid output after fee for $id." }
             legs += DepthLegResult(
                 instrumentId = id,
@@ -162,11 +180,14 @@ object OrderBookDepthSimulator {
                 outputBeforeFee = conversion.output,
                 feeAmount = fee,
                 outputAfterFee = afterFee,
+                feeCurrency = feeCurrency,
                 levelsConsumed = conversion.levels,
                 executedBaseQuantity = conversion.executedBase,
                 quoteAmount = conversion.quoteAmount,
-                dustAmount = conversion.dust,
-                dustCurrency = conversion.dustCurrency
+                dustAmount = if (quoteFeeOnBuy) {
+                    (amount - conversion.quoteAmount - fee).coerceAtLeast(0.0)
+                } else conversion.dust,
+                dustCurrency = if (quoteFeeOnBuy && amount > conversion.quoteAmount + fee) from else conversion.dustCurrency
             )
             amount = afterFee
         }
