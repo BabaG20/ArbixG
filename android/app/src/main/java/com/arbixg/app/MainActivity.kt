@@ -173,6 +173,7 @@ private fun ArbixGApp() {
                     }
                 }
                 BackupPanel()
+                OkxAccountPanel(instrumentIds = snapshot?.candidates.orEmpty().flatMap { it.instruments }.distinct())
                 Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(16.dp)) {
                     Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
