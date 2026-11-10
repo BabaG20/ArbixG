@@ -14,7 +14,7 @@ class CycleRiskGuardTest {
         maxSnapshotAgeMs = 2_000,
         killSwitchEnabled = kill
     )
-    private fun balances(usdt: String = "20", btc: String = "1") = mapOf(
+    private fun balances(usdt: String = "15", btc: String = "1") = mapOf(
         "USDT" to RiskBalance(d(usdt), now),
         "BTC" to RiskBalance(d(btc), now)
     )
