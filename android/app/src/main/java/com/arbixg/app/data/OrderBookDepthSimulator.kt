@@ -45,13 +45,16 @@ object OrderBookDepthSimulator {
         marketIds: List<String>,
         markets: Map<String, MarketDepth>,
         startAmount: Double,
-        feeRate: Double
+        feeRate: Double,
+        now: Long = System.currentTimeMillis(),
+        maxBookAgeMs: Long = 2_000L
     ): DepthCycleResult {
         require(path.size == 4 && path.first() == path.last()) { "Path must be a closed three-currency cycle." }
         require(path.take(3).distinct().size == 3) { "Cycle must contain three different currencies." }
         require(marketIds.size == 3 && marketIds.distinct().size == 3) { "Exactly three different instruments are required." }
         require(startAmount.isFinite() && startAmount > 0.0) { "Starting amount must be finite and positive." }
         require(feeRate.isFinite() && feeRate >= 0.0 && feeRate < 1.0) { "Fee rate must be between 0 and 1." }
+        require(maxBookAgeMs >= 0L) { "Maximum order-book age cannot be negative." }
 
         var amount = startAmount
         var grossAmount = startAmount
@@ -63,6 +66,9 @@ object OrderBookDepthSimulator {
             val market = markets[instrumentId] ?: error("Missing order book for $instrumentId.")
             require(market.instrumentId == instrumentId && market.orderBook.instrumentId == instrumentId) {
                 "Order-book instrument mismatch for $instrumentId."
+            }
+            require(market.orderBook.isUsable(now, maxBookAgeMs)) {
+                "Order book for $instrumentId is stale, crossed, empty, or incorrectly ordered."
             }
             val beforeFee = when {
                 from == market.baseCurrency && to == market.quoteCurrency ->
