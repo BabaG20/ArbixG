@@ -26,6 +26,8 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.arbixg.app.data.OkxCredentialStore
+import com.arbixg.app.data.ArbixDatabase
+import com.arbixg.app.data.OrderJournal
 import com.arbixg.app.data.OkxCredentials
 import com.arbixg.app.data.OkxPrivateApi
 import com.arbixg.app.data.OkxAccountSnapshot
@@ -109,14 +111,35 @@ fun OkxAccountPanel(instrumentIds: List<String>) {
                                     instrumentIds = instrumentIds.take(10),
                                     demoMode = true
                                 )
-                                try {
-                                    pendingOrders = api.loadPendingSpotOrders(demoMode = true).map {
-                                        OrderFillReconciler.reconcile(null, it)
+                                val journal = OrderJournal(ArbixDatabase.getInstance(context).trackedOrderDao())
+                                val recovered = LinkedHashMap<String, ReconciledOrder>()
+                                var refreshFailures = 0
+
+                                // Recover locally journaled orders after restart. Isolate failures per order.
+                                journal.getRecent().forEach { previous ->
+                                    try {
+                                        val fresh = api.loadOrderSnapshot(previous.instrumentId, previous.orderId, demoMode = true)
+                                        val reconciled = OrderFillReconciler.reconcile(previous, fresh)
+                                        journal.save(reconciled)
+                                        recovered[reconciled.orderId] = reconciled
+                                    } catch (_: Exception) {
+                                        refreshFailures++
+                                        recovered[previous.orderId] = previous
                                     }
-                                    status = "OKX demo read-only verification succeeded. Existing pending orders were queried; no orders were submitted or changed."
+                                }
+
+                                try {
+                                    api.loadPendingSpotOrders(demoMode = true).forEach { incoming ->
+                                        val previous = journal.get(incoming.orderId)
+                                        val reconciled = OrderFillReconciler.reconcile(previous, incoming)
+                                        journal.save(reconciled)
+                                        recovered[reconciled.orderId] = reconciled
+                                    }
+                                    pendingOrders = recovered.values.sortedByDescending { it.lastExchangeUpdateEpochMs }
+                                    status = "OKX demo read-only check succeeded. ${pendingOrders.size} tracked orders restored/updated; $refreshFailures older-order refreshes unavailable. No orders were submitted or changed."
                                 } catch (orderError: Exception) {
-                                    pendingOrders = emptyList()
-                                    status = "Account balance and fees loaded. Pending-order query failed: ${orderError.message ?: "unknown error"}"
+                                    pendingOrders = recovered.values.sortedByDescending { it.lastExchangeUpdateEpochMs }
+                                    status = "Account balance and fees loaded. Order refresh incomplete: ${orderError.message ?: "unknown error"}. Previously saved order records remain on this device."
                                 }
                             } catch (error: Exception) {
                                 account = null
