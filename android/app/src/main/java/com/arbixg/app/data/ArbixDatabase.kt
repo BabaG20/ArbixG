@@ -12,15 +12,17 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         TradeRecord::class,
         TrackedOrderEntity::class,
         RiskReservationEntity::class,
-        RiskStateEntity::class
+        RiskStateEntity::class,
+        OrderIntentEntity::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = true
 )
 abstract class ArbixDatabase : RoomDatabase() {
     abstract fun tradeRecordDao(): TradeRecordDao
     abstract fun trackedOrderDao(): TrackedOrderDao
     abstract fun riskStateDao(): RiskStateDao
+    abstract fun orderIntentDao(): OrderIntentDao
 
     companion object {
         /** Preserve existing trade history while adding the durable order journal. */
@@ -73,6 +75,35 @@ abstract class ArbixDatabase : RoomDatabase() {
             }
         }
 
+        /** Persist each order intent before submission; preserve all prior Room data. */
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    """CREATE TABLE IF NOT EXISTS order_intents (
+                        clientOrderId TEXT NOT NULL PRIMARY KEY,
+                        cycleId TEXT NOT NULL,
+                        legIndex INTEGER NOT NULL,
+                        instrumentId TEXT NOT NULL,
+                        side TEXT NOT NULL,
+                        orderType TEXT NOT NULL,
+                        price TEXT NOT NULL,
+                        size TEXT NOT NULL,
+                        state TEXT NOT NULL,
+                        exchangeOrderId TEXT,
+                        createdAtEpochMs INTEGER NOT NULL,
+                        updatedAtEpochMs INTEGER NOT NULL,
+                        lastError TEXT
+                    )"""
+                )
+                database.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS index_order_intents_cycleId_legIndex ON order_intents(cycleId, legIndex)"
+                )
+                database.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_order_intents_state_updatedAtEpochMs ON order_intents(state, updatedAtEpochMs)"
+                )
+            }
+        }
+
         @Volatile private var INSTANCE: ArbixDatabase? = null
 
         fun getInstance(context: Context): ArbixDatabase =
@@ -81,7 +112,7 @@ abstract class ArbixDatabase : RoomDatabase() {
                     context.applicationContext,
                     ArbixDatabase::class.java,
                     "arbixg-local.db"
-                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build().also { INSTANCE = it }
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build().also { INSTANCE = it }
             }
     }
 }
