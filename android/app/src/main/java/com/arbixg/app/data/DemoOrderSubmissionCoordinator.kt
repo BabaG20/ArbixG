@@ -81,8 +81,7 @@ class DemoOrderSubmissionCoordinator(
     /** Query the exchange for an ambiguous intent; never creates or resubmits an order. */
     suspend fun reconcileUnknown(intent: OrderIntentEntity): Result {
         require(intent.state == OrderIntentEntity.UNKNOWN ||
-            intent.state == OrderIntentEntity.SUBMITTING ||
-            intent.state == OrderIntentEntity.ACKNOWLEDGED
+            intent.state == OrderIntentEntity.SUBMITTING
         ) { "Only recoverable intents can be reconciled." }
 
         return try {
