@@ -29,6 +29,8 @@ import com.arbixg.app.data.OkxCredentialStore
 import com.arbixg.app.data.OkxCredentials
 import com.arbixg.app.data.OkxPrivateApi
 import com.arbixg.app.data.OkxAccountSnapshot
+import com.arbixg.app.data.ReconciledOrder
+import com.arbixg.app.data.OrderFillReconciler
 import com.arbixg.app.security.ApiSecretVault
 import kotlinx.coroutines.launch
 
@@ -42,6 +44,7 @@ fun OkxAccountPanel(instrumentIds: List<String>) {
     var passphrase by remember { mutableStateOf("") }
     var status by remember { mutableStateOf("Credentials are not loaded into the screen. Use a read-only OKX API key.") }
     var account by remember { mutableStateOf<OkxAccountSnapshot?>(null) }
+    var pendingOrders by remember { mutableStateOf<List<ReconciledOrder>>(emptyList()) }
     var busy by remember { mutableStateOf(false) }
 
     Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF151F31)), shape = RoundedCornerShape(14.dp)) {
@@ -98,11 +101,15 @@ fun OkxAccountPanel(instrumentIds: List<String>) {
                             status = "Checking OKX demo account, balances and fee tier…"
                             try {
                                 val credentials = store.load() ?: error("Save all three credentials first.")
-                                account = OkxPrivateApi(credentials).loadAccountSnapshot(
+                                val api = OkxPrivateApi(credentials)
+                                account = api.loadAccountSnapshot(
                                     instrumentIds = instrumentIds.take(10),
                                     demoMode = true
                                 )
-                                status = "OKX demo read-only verification succeeded. No order endpoints were called."
+                                pendingOrders = api.loadPendingSpotOrders(demoMode = true).map {
+                                    OrderFillReconciler.reconcile(null, it)
+                                }
+                                status = "OKX demo read-only verification succeeded. Existing pending orders were queried; no orders were submitted or changed."
                             } catch (error: Exception) {
                                 account = null
                                 status = "Account check failed: ${error.message ?: "unknown error"}"
@@ -119,6 +126,7 @@ fun OkxAccountPanel(instrumentIds: List<String>) {
                     try {
                         store.clear()
                         account = null
+                        pendingOrders = emptyList()
                         status = "Saved OKX credentials deleted from this device."
                     } catch (error: Exception) {
                         status = "Could not clear credentials: ${error.message ?: "unknown error"}"
@@ -139,6 +147,14 @@ fun OkxAccountPanel(instrumentIds: List<String>) {
                     Text("${fee.instrumentId}: maker ${fee.makerRate} · taker ${fee.takerRate} · fee currency ${fee.feeCurrency ?: "not supplied"} · level ${fee.level ?: "not supplied"}", color = Color(0xFF9AA8BC), fontSize = 10.sp)
                 }
                 Text("Retrieved ${data.retrievedAtEpochMs}. Demo environment only. Balance and fees must be refreshed before each future simulation.", color = Color(0xFFE7B95B), fontSize = 9.sp)
+                Text("Pending Spot orders · read-only", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                if (pendingOrders.isEmpty()) {
+                    Text("No pending Spot orders were returned.", color = Color(0xFF9AA8BC), fontSize = 10.sp)
+                } else {
+                    pendingOrders.take(20).forEach { order ->
+                        Text("${order.instrumentId} · ${order.status} · filled ${order.cumulativeFilledSize}/${order.requestedSize} · remaining ${order.remainingSize}", color = Color(0xFF9AA8BC), fontSize = 10.sp)
+                    }
+                }
             }
         }
     }
