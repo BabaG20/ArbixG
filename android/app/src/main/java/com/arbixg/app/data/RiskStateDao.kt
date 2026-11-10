@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Upsert
+import androidx.room.Transaction
 
 @Dao
 interface RiskStateDao {
@@ -13,6 +14,20 @@ interface RiskStateDao {
 
     @Query("SELECT * FROM risk_state WHERE id = 1 LIMIT 1")
     suspend fun getState(): RiskStateEntity?
+
+    @Transaction
+    suspend fun setKillSwitchEnabled(enabled: Boolean, utcDate: String, nowEpochMs: Long) {
+        val current = getState()
+        val loss = if (current?.utcDate == utcDate) current.dailyRealizedLoss else "0"
+        upsertState(
+            RiskStateEntity(
+                utcDate = utcDate,
+                dailyRealizedLoss = loss,
+                killSwitchEnabled = enabled,
+                updatedAtEpochMs = nowEpochMs
+            )
+        )
+    }
 
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertReservations(reservations: List<RiskReservationEntity>)
