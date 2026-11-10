@@ -54,11 +54,11 @@ class OrderBookDepthSimulatorTest {
         assertThrows(IllegalArgumentException::class.java) {
             OrderBookDepthSimulator.simulateCycle(listOf("A", "B", "C", "A"), listOf("A-B", "B-C", "A-C"), markets, 5.0, -0.1, now = now)
         }
-        assertThrows(IllegalStateException::class.java) {
+        // Currency-route validation uses require(), which correctly throws IllegalArgumentException.
+        assertThrows(IllegalArgumentException::class.java) {
             OrderBookDepthSimulator.simulateCycle(listOf("A", "B", "D", "A"), listOf("A-B", "B-C", "A-C"), markets, 5.0, 0.001, now = now)
         }
     }
-
 
     @Test
     fun rejectsStaleOrderBooks() {
