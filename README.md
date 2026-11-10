@@ -1,40 +1,37 @@
 # ArbixG
 
-An Android-first triangular arbitrage research platform, initially targeting OKX Spot.
+Android-first OKX Spot triangular-arbitrage research app.
 
-## Implemented foundations
+## Current implementation
 
-- OKX public REST client for spot instruments, tickers, and order books.
-- Native Android dashboard polling verified OKX public tickers for BTC-USDT, ETH-USDT, SOL-USDT, and XRP-USDT every 15 seconds. It displays exchange-returned last/bid/ask values and timestamps, and reports disconnection/errors instead of substituting sample prices.
-- Reconnecting OKX public WebSocket adapter with subscription replay, heartbeat, status reporting, and bounded exponential reconnect. The Android screen currently uses REST polling; this WebSocket adapter is not yet wired into the Android UI.
-- Directed three-market route scanner using top-of-book bid/ask conversion.
-- Depth-aware three-leg simulator that consumes order-book levels, applies an explicitly supplied fee, and rejects stale or insufficient books.
-- Room local trade-history schema and DataStore settings foundation.
-- Android Keystore AES-GCM credential vault foundation.
-- CI workflows for Node tests and Android debug APK assembly.
+- Android fetches the full OKX public SPOT instrument catalogue and full SPOT ticker snapshot, filters instruments whose exchange state is `live`, and maps every valid ticker into a market graph.
+- The Android triangular scanner enumerates directed three-market cycles across all currencies in that snapshot, not a fixed four-pair watchlist. It excludes cycles reusing a market, deduplicates rotations, and ranks positive gross top-of-book candidates.
+- The dashboard shows the count of live markets scanned and the top 100 gross candidates from each complete snapshot. It refreshes every 15 seconds.
+- Node engine foundation includes OKX REST client, reconnecting public WebSocket adapter, directed route scanner, and depth-aware three-leg simulator.
+- Room local trade-history schema, DataStore settings foundation and Android Keystore AES-GCM credential vault.
+- GitHub Actions workflows for Node tests and Android debug APK assembly.
 
-## Not implemented — do not treat this as a trading bot
+## Important interpretation
 
-- The Android app does not yet scan and display executable triangular routes.
-- No authenticated account balances, fee-tier retrieval, order submission, demo order engine, live trading, or automatic execution.
-- No WebSocket snapshot/sequence reconciliation or robust order-book cache.
-- No partial-fill recovery, idempotent order state machine, kill switch, exposure limits, or exchange-side reconciliation.
-- The current depth simulator applies a simplified output-asset fee deduction. OKX fee-currency behavior, actual account fee tier, and exact rounding/precision rules must be verified before using its result for trade decisions.
-- Unit tests use deterministic synthetic fixtures; they are not live exchange tests and do not prove market profitability.
-- GitHub Actions can build an APK artifact, but automatic installation/update on a phone is not implemented.
+A candidate shown by the Android scanner is **gross top-of-book discovery only**. It is not a verified arbitrage and must not be treated as expected profit. It has not yet deducted the user's confirmed account-specific fee schedule, validated three current order books, checked depth/lot/minimum/notional constraints, modeled exact fee currency and rounding, checked balances, or accounted for latency and partial fills. The UI explicitly labels these candidates unverified. A zero candidate count means none passed the current snapshot's gross-positive filter; it does not prove no opportunity existed between snapshots.
 
-## Safety principles
+## Not implemented / execution remains locked
 
-1. Public market data only until the data pipeline is verified.
-2. Never display missing/stale market data as zero or fabricate an opportunity.
-3. Require actual fee tier, instrument rules, depth, slippage, and balance checks.
-4. Keep API secrets encrypted with Android Keystore; never commit keys.
-5. Never request withdrawal permission. Use IP restrictions and least-privilege API keys.
-6. Live execution remains disabled until order lifecycle, recovery, and risk controls are tested.
+- Android WebSocket market feed integration and robust snapshot/sequence/checksum reconciliation.
+- Android order-book cache and per-candidate depth validation against fresh books.
+- Authenticated account balance retrieval, actual account fee-tier retrieval and exact exchange fee-currency behavior.
+- Demo Trading authenticated order submission, idempotent order state machine, fill reconciliation, cancellation and partial-fill recovery.
+- Position/exposure controls, per-cycle and daily loss limits, stale-data guard, slippage caps, kill switch and restart recovery.
+- Production signing, release distribution and a verified automatic phone update mechanism.
+- Physical-device network, performance and install/update tests.
+
+## Safety
+
+No API credentials are committed. No orders are sent. Automatic trading is disabled. Do not enable live trading based on gross candidates. Use API keys without withdrawal permission, with IP restrictions and least privilege. Live execution must remain disabled until exchange order lifecycle and all risk/recovery controls are implemented and tested.
 
 ## Development
 
-Requires Node.js 20 or newer:
+Node.js 20+:
 
 ```sh
 npm test
@@ -46,4 +43,4 @@ Android debug build:
 gradle :android:app:assembleDebug
 ```
 
-The Android application ID is `com.arbixg.app`, intentionally distinct from the legacy `com.arbitri.app` package so the rebuilt app can be installed side-by-side without replacing the old installation.
+The new Android application ID is `com.arbixg.app`, intentionally distinct from legacy `com.arbitri.app` to allow side-by-side installation without overwriting the old app.
