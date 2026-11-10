@@ -50,21 +50,22 @@ export function simulateTriangularRoute({ opportunity, books, instruments, start
       const available = finitePositive(level[1]);
       if (!price || !available) continue;
       if (leg.side === 'sell-base') {
-        const take = Math.min(remaining, floorToStep(available, lotSz));
-        if (take < minSz) continue;
+        const take = floorToStep(Math.min(remaining, available), lotSz);
+        if (take <= 0) continue;
         const quote = take * price;
         remaining -= take; inputConsumed += take; baseFilled += take; quoteValue += quote; outputBeforeFee += quote;
       } else {
         const affordableBase = remaining / price;
         const take = Math.min(affordableBase, floorToStep(available, lotSz));
         const roundedBase = floorToStep(take, lotSz);
-        if (roundedBase < minSz) continue;
+        if (roundedBase <= 0) continue;
         const quote = roundedBase * price;
         remaining -= quote; inputConsumed += quote; baseFilled += roundedBase; quoteValue += quote; outputBeforeFee += roundedBase;
       }
       if (remaining <= Math.max(1e-12, currentAmount * 1e-12)) break;
     }
     if (remaining > Math.max(1e-12, currentAmount * 1e-12)) return { status: 'insufficient-depth', executions: [...executions, { instId: leg.instId, side: leg.side, input: inputConsumed, outputBeforeFee, unfilledAmount: remaining }] };
+    if (baseFilled < minSz) return { status: 'below-minimum-size', executions };
     const output = outputBeforeFee * (1 - fee);
     executions.push({ instId: leg.instId, side: leg.side, input: inputConsumed, baseFilled, quoteValue, outputBeforeFee, feeRate: fee, output });
     currentAmount = output;
