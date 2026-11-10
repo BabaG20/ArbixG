@@ -34,9 +34,9 @@ data class OkxAccountBalance(
 
 data class OkxSpotFee(
     val instrumentId: String,
+    val groupId: String,
     val makerRate: String,
     val takerRate: String,
-    val feeCurrency: String?,
     val level: String?
 )
 
@@ -84,29 +84,53 @@ class OkxPrivateApi(
                     }
                 }
             }
-            // OKX allows up to five Spot instruments per fee-rate request.
-            // Batch requests to respect the account endpoint's rate limit.
+            // OKX's account instrument endpoint supplies the per-symbol fee group.
+            // The fee-rate endpoint accepts one instId per request; its feeGroup array
+            // must be matched to that instrument's groupId (top-level legacy rates are deprecated).
             val requestedIds = instrumentIds.distinct()
-            val feesById = LinkedHashMap<String, OkxSpotFee>()
-            requestedIds.chunked(5).forEachIndexed { batchIndex, batch ->
-                if (batchIndex > 0) delay(450L)
-                val path = "/api/v5/account/trade-fee?instType=SPOT&instId=${batch.joinToString(",")}"
-                val data = get(path, demoMode).getJSONArray("data")
-                for (i in 0 until data.length()) {
-                    val item = data.getJSONObject(i)
-                    val instrumentId = item.optString("instId").takeIf { it.isNotBlank() }
-                        ?: if (batch.size == 1) batch.first() else error("OKX fee response omitted instId for a batch request.")
-                    feesById[instrumentId] = OkxSpotFee(
-                        instrumentId = instrumentId,
-                        makerRate = item.optString("maker"),
-                        takerRate = item.optString("taker"),
-                        feeCurrency = item.optString("feeCcy").takeIf { it.isNotBlank() },
-                        level = item.optString("level").takeIf { it.isNotBlank() }
-                    )
-                }
+            val instrumentData = get("/api/v5/account/instruments?instType=SPOT", demoMode).getJSONArray("data")
+            val groupsByInstrument = LinkedHashMap<String, String>()
+            for (i in 0 until instrumentData.length()) {
+                val item = instrumentData.getJSONObject(i)
+                val id = item.optString("instId")
+                val groupId = item.optString("groupId")
+                if (id.isNotBlank() && groupId.isNotBlank()) groupsByInstrument[id] = groupId
             }
-            val missingFeeIds = requestedIds.filterNot { feesById.containsKey(it) }
-            require(missingFeeIds.isEmpty()) { "OKX fee rates missing for: ${missingFeeIds.joinToString()}" }
+            val missingGroups = requestedIds.filterNot { groupsByInstrument.containsKey(it) }
+            require(missingGroups.isEmpty()) {
+                "OKX account instrument fee group missing for: ${missingGroups.joinToString()}"
+            }
+
+            val feesById = LinkedHashMap<String, OkxSpotFee>()
+            requestedIds.forEachIndexed { index, instrumentId ->
+                // Endpoint limit: 5 requests per 2 seconds per user.
+                if (index > 0) delay(450L)
+                val feeData = get(
+                    "/api/v5/account/trade-fee?instType=SPOT&instId=$instrumentId",
+                    demoMode
+                ).getJSONArray("data")
+                val item = feeData.optJSONObject(0)
+                    ?: error("OKX fee response is empty for $instrumentId.")
+                val expectedGroupId = groupsByInstrument.getValue(instrumentId)
+                val feeGroups = item.optJSONArray("feeGroup")
+                    ?: error("OKX fee response omitted feeGroup for $instrumentId.")
+                val matchingGroup = (0 until feeGroups.length())
+                    .map { feeGroups.getJSONObject(it) }
+                    .firstOrNull { it.optString("groupId") == expectedGroupId }
+                    ?: error("OKX fee response has no group $expectedGroupId for $instrumentId.")
+                val maker = matchingGroup.optString("maker")
+                val taker = matchingGroup.optString("taker")
+                require(maker.isNotBlank() && taker.isNotBlank()) {
+                    "OKX maker/taker fee rate missing for $instrumentId (group $expectedGroupId)."
+                }
+                feesById[instrumentId] = OkxSpotFee(
+                    instrumentId = instrumentId,
+                    groupId = expectedGroupId,
+                    makerRate = maker,
+                    takerRate = taker,
+                    level = item.optString("level").takeIf { it.isNotBlank() }
+                )
+            }
             val fees = requestedIds.map { feesById.getValue(it) }
             OkxAccountSnapshot(
                 uid = config.optString("uid").takeIf { it.isNotBlank() },
