@@ -96,6 +96,7 @@ fun OkxAccountPanel(
                             passphrase = ""
                             status = "Credentials encrypted on this device. Ready for demo read-only verification."
                             account = null
+                            onAccountSnapshot(null)
                         } catch (error: Exception) {
                             status = "Could not save credentials: ${error.message ?: "unknown error"}"
                         }
