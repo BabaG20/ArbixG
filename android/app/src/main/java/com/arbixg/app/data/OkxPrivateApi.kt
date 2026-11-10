@@ -103,6 +103,40 @@ class OkxPrivateApi(
             )
         }
 
+
+    /** Read-only list of current Spot orders (up to OKX's requested page size). */
+    suspend fun loadPendingSpotOrders(demoMode: Boolean): List<OkxOrderSnapshot> = withContext(Dispatchers.IO) {
+        val data = get("/api/v5/trade/orders-pending?instType=SPOT&limit=100", demoMode).getJSONArray("data")
+        buildList {
+            for (i in 0 until data.length()) add(parseOrder(data.getJSONObject(i)))
+        }
+    }
+
+    /** Read-only refresh for one known order ID, including terminal order states. */
+    suspend fun loadOrderSnapshot(
+        instrumentId: String,
+        orderId: String,
+        demoMode: Boolean
+    ): OkxOrderSnapshot = withContext(Dispatchers.IO) {
+        require(instrumentId.isNotBlank() && orderId.isNotBlank())
+        val path = "/api/v5/trade/order?instId=$instrumentId&ordId=$orderId"
+        val item = get(path, demoMode).getJSONArray("data").optJSONObject(0)
+            ?: error("OKX order query returned no order.")
+        parseOrder(item)
+    }
+
+    private fun parseOrder(item: JSONObject): OkxOrderSnapshot = OkxOrderSnapshot(
+        orderId = item.optString("ordId"),
+        instrumentId = item.optString("instId"),
+        exchangeState = item.optString("state"),
+        requestedSize = item.optString("sz"),
+        cumulativeFilledSize = item.optString("accFillSz"),
+        averageFillPrice = item.optString("avgPx"),
+        cumulativeFee = item.optString("fee", "0"),
+        feeCurrency = item.optString("feeCcy").takeIf { it.isNotBlank() },
+        updateTimeEpochMs = item.optString("uTime").toLongOrNull() ?: 0L
+    )
+
     private fun get(requestPath: String, demoMode: Boolean): JSONObject {
         val timestamp = TIMESTAMP_FORMATTER.format(Instant.ofEpochMilli(clock()))
         val signature = sign(timestamp, "GET", requestPath, "", credentials.secretKey)
