@@ -42,8 +42,9 @@ data class DepthCycleResult(
  * with the actual post-fee output of each leg. Residual input is reported as
  * dust and is never carried forward or counted as proceeds.
  *
- * Fees are applied to the received currency as a conservative estimate.
- * Fee currency/account tier semantics must be verified before execution.
+ * OKX Spot feeType 0 charges the received currency; feeType 1 charges the
+ * quote currency. The latter is reserved from quote input on buys and
+ * deducted from quote output on sells. Fee rates are supplied per instrument.
  */
 object OrderBookDepthSimulator {
     fun simulateCycle(
@@ -72,7 +73,7 @@ object OrderBookDepthSimulator {
             require(marketIds.all { feeRatesByInstrument.containsKey(it) }) { "A taker fee rate is missing for a cycle instrument." }
         }
 
-        val gross = runCycle(path, marketIds, markets, startAmount, feeRate, emptyMap(), 0, now, maxBookAgeMs, instrumentRules)
+        val gross = runCycle(path, marketIds, markets, startAmount, 0.0, emptyMap(), 0, now, maxBookAgeMs, instrumentRules)
         val net = if (feeRate == 0.0 && feeRatesByInstrument.isNullOrEmpty()) gross else
             runCycle(path, marketIds, markets, startAmount, feeRate, feeRatesByInstrument.orEmpty(), feeType, now, maxBookAgeMs, instrumentRules)
         return DepthCycleResult(
