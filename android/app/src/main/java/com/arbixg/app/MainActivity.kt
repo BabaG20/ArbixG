@@ -17,6 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Hub
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -26,6 +27,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,9 +35,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
 import com.arbixg.app.data.MarketSnapshot
 import com.arbixg.app.data.OkxMarketRepository
 import com.arbixg.app.data.TriangularCandidate
+import com.arbixg.app.update.DirectUpdater
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import java.text.DateFormat
 import java.util.Date
@@ -56,10 +61,25 @@ private val Green = Color(0xFF79D6A3)
 @Composable
 private fun ArbixGApp() {
     val repository = remember { OkxMarketRepository() }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var updateRelease by remember { mutableStateOf<DirectUpdater.Release?>(null) }
+    var updateMessage by remember { mutableStateOf("Checking for app updates…") }
     var snapshot by remember { mutableStateOf<MarketSnapshot?>(null) }
     var connection by remember { mutableStateOf("CONNECTING") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var lastSuccessAt by remember { mutableStateOf<Long?>(null) }
+
+    LaunchedEffect(context) {
+        when (val result = DirectUpdater.check(context)) {
+            DirectUpdater.CheckResult.Current -> updateMessage = "App iko kwenye toleo la sasa."
+            is DirectUpdater.CheckResult.Available -> {
+                updateRelease = result.release
+                updateMessage = "Toleo jipya ${result.release.versionName} linapatikana."
+            }
+            is DirectUpdater.CheckResult.Failed -> updateMessage = "Update: ${result.message}"
+        }
+    }
 
     LaunchedEffect(repository) {
         var retryDelayMs = 15_000L
@@ -99,6 +119,30 @@ private fun ArbixGApp() {
                     Column(Modifier.padding(start = 10.dp)) {
                         Text("ArbixG", color = Color.White, fontSize = 25.sp, fontWeight = FontWeight.Bold)
                         Text("ALL OKX SPOT MARKETS · TRIANGULAR SCAN", color = Muted, fontSize = 9.sp, letterSpacing = 0.7.sp)
+                    }
+                }
+                Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(14.dp)) {
+                    Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text("APP UPDATES", color = Gold, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        Text(updateMessage, color = Muted, fontSize = 11.sp)
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            androidx.compose.material3.OutlinedButton(onClick = {
+                                scope.launch {
+                                    updateMessage = "Inaangalia toleo jipya…"
+                                    when (val result = DirectUpdater.check(context)) {
+                                        DirectUpdater.CheckResult.Current -> { updateRelease = null; updateMessage = "App iko kwenye toleo la sasa." }
+                                        is DirectUpdater.CheckResult.Available -> { updateRelease = result.release; updateMessage = "Toleo ${result.release.versionName} linapatikana." }
+                                        is DirectUpdater.CheckResult.Failed -> { updateRelease = null; updateMessage = result.message }
+                                    }
+                                }
+                            }) { Text("Check updates") }
+                            if (updateRelease != null) {
+                                Button(onClick = {
+                                    val release = updateRelease!!
+                                    scope.launch { updateMessage = DirectUpdater.downloadAndOpenInstaller(context, release) }
+                                }) { Text("Download & install") }
+                            }
+                        }
                     }
                 }
                 Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(16.dp)) {
