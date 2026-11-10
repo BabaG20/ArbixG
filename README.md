@@ -9,18 +9,21 @@ Android-first OKX Spot triangular-arbitrage research app.
 - The dashboard shows the count of live markets scanned and the top 100 gross candidates from each complete snapshot. It refreshes every 15 seconds.
 - Node engine foundation includes OKX REST client, reconnecting public WebSocket adapter, directed route scanner, and depth-aware three-leg simulator.
 - Room local trade-history schema, DataStore settings foundation and Android Keystore AES-GCM credential vault.
+- Android validates fresh public L2 order books for up to 10 selected USDT cycles (4 concurrent requests), floors base quantities to each live instrument's `lotSz` with `BigDecimal`, re-simulates all three legs, checks `minSz`/`tickSz`, and reports residual dust separately from proceeds.
+- Read-only authenticated OKX demo account client signs requests with HMAC-SHA256, stores API credentials encrypted with Android Keystore, and retrieves account level, balances and per-instrument Spot maker/taker fee rates. It can query current pending Spot orders; it does not submit or modify orders.
+- Pure order-fill reconciliation model handles cumulative partial fills, remaining quantity, fees, stale snapshots, overfills and terminal states. This is a tested foundation, not yet a persistent end-to-end execution lifecycle.
 - GitHub Actions workflows for Node tests and Android debug APK assembly.
 
 ## Important interpretation
 
-A candidate shown by the Android scanner is **gross top-of-book discovery only**. It is not a verified arbitrage and must not be treated as expected profit. It has not yet deducted the user's confirmed account-specific fee schedule, validated three current order books, checked depth/lot/minimum/notional constraints, modeled exact fee currency and rounding, checked balances, or accounted for latency and partial fills. The UI explicitly labels these candidates unverified. A zero candidate count means none passed the current snapshot's gross-positive filter; it does not prove no opportunity existed between snapshots.
+A candidate shown by the Android scanner is **gross top-of-book discovery only**. It is not a verified arbitrage and must not be treated as expected profit. Selected USDT candidates receive a separate public-book depth simulation with lot/minimum/tick validation, but the dashboard does not yet combine authenticated account fee currency/tier, balances and those simulations into an executable net-profit result. OKX Spot `minNotional` is not exposed in the loaded metadata and remains unverified. Fee currency behavior, latency, and full partial-fill recovery are not yet modeled end-to-end. The UI explicitly labels these candidates unverified. A zero candidate count means none passed the current snapshot's gross-positive filter; it does not prove no opportunity existed between snapshots.
 
 ## Not implemented / execution remains locked
 
 - Android WebSocket market feed integration and robust snapshot/sequence/checksum reconciliation.
 - Android order-book cache and per-candidate depth validation against fresh books.
-- Authenticated account balance retrieval, actual account fee-tier retrieval and exact exchange fee-currency behavior.
-- Demo Trading authenticated order submission, idempotent order state machine, fill reconciliation, cancellation and partial-fill recovery.
+- Validation of the authenticated read-only demo account client against a user-created OKX demo API key on a physical device; fee-currency behavior and account fee application are not yet verified end-to-end.
+- Demo Trading order submission, cancel/replace, persistent order lifecycle, idempotency across app restarts, partial-fill recovery/unwind and reconciliation of completed/canceled order history. The current fill reconciler is a pure tested model and pending-order query only.
 - Position/exposure controls, per-cycle and daily loss limits, stale-data guard, slippage caps, kill switch and restart recovery.
 - Production signing, release distribution and a verified automatic phone update mechanism.
 - Physical-device network, performance and install/update tests.
