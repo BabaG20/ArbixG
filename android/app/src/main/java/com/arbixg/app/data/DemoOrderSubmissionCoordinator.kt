@@ -1,5 +1,7 @@
 package com.arbixg.app.data
 
+import kotlinx.coroutines.CancellationException
+
 /**
  * Coordinates the durable pre-submit intent and the strict Demo-only API.
  *
@@ -59,6 +61,9 @@ class DemoOrderSubmissionCoordinator(
             // If this local write fails, SUBMITTING remains recoverable after restart.
             journal.markAcknowledged(intent.clientOrderId, order.orderId, clock())
             Result.Acknowledged(order)
+        } catch (cancelled: CancellationException) {
+            // Leave SUBMITTING durable; startup recovery must query OKX before any further action.
+            throw cancelled
         } catch (failure: Exception) {
             // Do not retry: a timeout may mean OKX accepted the order.
             val safeReason = failure::class.java.simpleName.ifBlank { "Unknown network/API failure" }
@@ -78,6 +83,8 @@ class DemoOrderSubmissionCoordinator(
             val order = demoApi.queryByClientOrderId(intent.instrumentId, intent.clientOrderId)
             journal.markAcknowledged(intent.clientOrderId, order.orderId, clock())
             Result.Acknowledged(order)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (failure: Exception) {
             val safeReason = failure::class.java.simpleName.ifBlank { "Unknown lookup failure" }
             Result.Ambiguous(intent.clientOrderId, safeReason)
