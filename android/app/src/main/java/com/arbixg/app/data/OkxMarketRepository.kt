@@ -6,6 +6,16 @@ import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 
+data class SpotInstrumentRules(
+    val instrumentId: String,
+    val baseCurrency: String,
+    val quoteCurrency: String,
+    val lotSize: String,
+    val minimumSize: String,
+    val tickSize: String,
+    val state: String
+)
+
 data class SpotTicker(
     val instrumentId: String,
     val baseCurrency: String,
@@ -27,46 +37,77 @@ data class MarketSnapshot(
     val tickers: List<SpotTicker>,
     val candidates: List<TriangularCandidate>,
     val activeSpotMarkets: Int,
-    val exchangeTimestamp: Long
+    val exchangeTimestamp: Long,
+    val staleTickerCount: Int,
+    val instrumentRules: Map<String, SpotInstrumentRules>
 )
 
 class OkxMarketRepository(
     private val baseUrl: String = "https://www.okx.com",
     private val connectTimeoutMs: Int = 8_000,
-    private val readTimeoutMs: Int = 12_000
+    private val readTimeoutMs: Int = 12_000,
+    private val maxTickerAgeMs: Long = 60_000,
+    private val clock: () -> Long = System::currentTimeMillis
 ) {
     suspend fun loadAllSpotMarkets(): MarketSnapshot = withContext(Dispatchers.IO) {
-        // Fetch the complete live SPOT instrument catalogue and the complete SPOT ticker
-        // snapshot, rather than making one request per watchlist symbol.
+        // One complete instrument catalogue + one complete ticker snapshot; no hardcoded watchlist.
         val instruments = request("/api/v5/public/instruments?instType=SPOT").getJSONArray("data")
         val tickersJson = request("/api/v5/market/tickers?instType=SPOT").getJSONArray("data")
-        val liveRules = HashMap<String, Pair<String, String>>()
+        val rules = LinkedHashMap<String, SpotInstrumentRules>()
         for (i in 0 until instruments.length()) {
             val item = instruments.getJSONObject(i)
-            if (item.optString("state") == "live") {
-                liveRules[item.optString("instId")] = item.optString("baseCcy") to item.optString("quoteCcy")
-            }
+            if (item.optString("state") != "live") continue
+            val id = item.optString("instId")
+            if (id.isBlank()) continue
+            rules[id] = SpotInstrumentRules(
+                instrumentId = id,
+                baseCurrency = item.optString("baseCcy"),
+                quoteCurrency = item.optString("quoteCcy"),
+                lotSize = item.optString("lotSz"),
+                minimumSize = item.optString("minSz"),
+                tickSize = item.optString("tickSz"),
+                state = item.optString("state")
+            )
         }
+
+        val now = clock()
         val tickers = ArrayList<SpotTicker>(tickersJson.length())
+        var staleCount = 0
         for (i in 0 until tickersJson.length()) {
             val item = tickersJson.getJSONObject(i)
             val id = item.optString("instId")
-            val currencies = liveRules[id] ?: continue
+            val rule = rules[id] ?: continue
             val last = item.optString("last")
             val bid = item.optString("bidPx")
             val ask = item.optString("askPx")
             val ts = item.optString("ts").toLongOrNull() ?: continue
-            if (!last.toDoubleOrNull().let { it != null && it > 0.0 } ||
-                !bid.toDoubleOrNull().let { it != null && it > 0.0 } ||
-                !ask.toDoubleOrNull().let { it != null && it > 0.0 } ||
-                (bid.toDoubleOrNull() ?: 0.0) > (ask.toDoubleOrNull() ?: 0.0)) continue
-            tickers += SpotTicker(id, currencies.first, currencies.second, last, bid, ask, ts)
+            val lastValue = last.toDoubleOrNull()
+            val bidValue = bid.toDoubleOrNull()
+            val askValue = ask.toDoubleOrNull()
+            if (lastValue == null || bidValue == null || askValue == null ||
+                !lastValue.isFinite() || !bidValue.isFinite() || !askValue.isFinite() ||
+                lastValue <= 0.0 || bidValue <= 0.0 || askValue <= 0.0 || bidValue > askValue) continue
+            if (ts <= 0L || ts > now + 5_000L || now - ts > maxTickerAgeMs) {
+                staleCount++
+                continue
+            }
+            tickers += SpotTicker(
+                instrumentId = id,
+                baseCurrency = rule.baseCurrency,
+                quoteCurrency = rule.quoteCurrency,
+                last = last,
+                bid = bid,
+                ask = ask,
+                timestamp = ts
+            )
         }
         MarketSnapshot(
             tickers = tickers,
             candidates = TriangularScanner.scanAll(tickers),
-            activeSpotMarkets = tickers.size,
-            exchangeTimestamp = tickers.maxOfOrNull { it.timestamp } ?: 0L
+            activeSpotMarkets = rules.size,
+            exchangeTimestamp = tickers.maxOfOrNull { it.timestamp } ?: 0L,
+            staleTickerCount = staleCount,
+            instrumentRules = rules
         )
     }
 
