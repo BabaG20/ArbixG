@@ -186,7 +186,7 @@ fun OkxAccountPanel(
                     }
                 Text("Spot fee tier", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 data.fees.forEach { fee ->
-                    Text("${fee.instrumentId}: maker ${fee.makerRate} · taker ${fee.takerRate} · fee currency ${fee.feeCurrency ?: "not supplied"} · level ${fee.level ?: "not supplied"}", color = Color(0xFF9AA8BC), fontSize = 10.sp)
+                    Text("${fee.instrumentId}: group ${fee.groupId} · maker ${fee.makerRate} · taker ${fee.takerRate} · level ${fee.level ?: "not supplied"}", color = Color(0xFF9AA8BC), fontSize = 10.sp)
                 }
                 Text("Retrieved ${data.retrievedAtEpochMs}. Demo environment only. Balance and fees must be refreshed before each future simulation.", color = Color(0xFFE7B95B), fontSize = 9.sp)
                 Text("Pending Spot orders · read-only", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
