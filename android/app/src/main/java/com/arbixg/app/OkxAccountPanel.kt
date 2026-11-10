@@ -37,7 +37,10 @@ import com.arbixg.app.security.ApiSecretVault
 import kotlinx.coroutines.launch
 
 @Composable
-fun OkxAccountPanel(instrumentIds: List<String>) {
+fun OkxAccountPanel(
+    instrumentIds: List<String>,
+    onAccountSnapshot: (OkxAccountSnapshot?) -> Unit = {}
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val store = remember(context) { OkxCredentialStore(ApiSecretVault(context)) }
@@ -108,9 +111,9 @@ fun OkxAccountPanel(instrumentIds: List<String>) {
                                 val credentials = store.load() ?: error("Save all three credentials first.")
                                 val api = OkxPrivateApi(credentials)
                                 account = api.loadAccountSnapshot(
-                                    instrumentIds = instrumentIds.take(10),
+                                    instrumentIds = instrumentIds,
                                     demoMode = true
-                                )
+                                ).also(onAccountSnapshot)
                                 val journal = OrderJournal(ArbixDatabase.getInstance(context).trackedOrderDao())
                                 val recovered = LinkedHashMap<String, ReconciledOrder>()
                                 var refreshFailures = 0
@@ -146,6 +149,7 @@ fun OkxAccountPanel(instrumentIds: List<String>) {
                                 }
                             } catch (error: Exception) {
                                 account = null
+                                onAccountSnapshot(null)
                                 pendingOrders = emptyList()
                                 status = "Account check failed: ${error.message ?: "unknown error"}"
                             } finally {
@@ -161,6 +165,7 @@ fun OkxAccountPanel(instrumentIds: List<String>) {
                     try {
                         store.clear()
                         account = null
+                        onAccountSnapshot(null)
                         pendingOrders = emptyList()
                         status = "Saved OKX credentials deleted from this device."
                     } catch (error: Exception) {
@@ -171,6 +176,7 @@ fun OkxAccountPanel(instrumentIds: List<String>) {
             Text(status, color = Color(0xFF9AA8BC), fontSize = 10.sp)
             account?.let { data ->
                 Text("DEMO ACCOUNT VERIFIED · UID ${data.uid ?: "not supplied"} · account level ${data.accountLevel ?: "not supplied"}", color = Color(0xFF79D6A3), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                Text("Fee mode: ${when (data.feeType) { "0" -> "fees charged in received currency"; "1" -> "fees charged in Spot quote currency"; else -> "unknown — fee-adjusted simulation disabled" }}", color = Color(0xFFE7B95B), fontSize = 10.sp)
                 Text("Balances", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 if (data.balances.isEmpty()) Text("No currency balances returned.", color = Color(0xFF9AA8BC), fontSize = 10.sp)
                 data.balances.filter { it.available.toDoubleOrNull()?.let { value -> value > 0.0 } == true || it.frozen.toDoubleOrNull()?.let { value -> value > 0.0 } == true }
