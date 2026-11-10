@@ -48,7 +48,7 @@
 - [ ] Provide clear pause/stop controls and visible Demo/Live environment indicator.
 - [ ] Keep API credentials in Android Keystore; require least-privilege API permissions and no withdrawal permission.
 - [ ] Redact API keys, signatures, passphrases and sensitive account data from logs.
-- [ ] Complete Room v1-to-v3 migration tests and verify existing trade history and order journal are preserved.
+- [ ] Complete Room v1-to-v4 migration tests and verify existing trade history and order journal are preserved.
 - [ ] Verify backup/restore and order journal recovery.
 - [ ] Configure user-owned release signing securely; never commit signing keys or secrets to this public repository.
 - [ ] Build signed release APK and verify install/update on a physical Android phone without USB dependency for future updates.
@@ -62,11 +62,12 @@
 - [ ] Obtain the user's explicit authorization before enabling any Live order submission. No Live trading before this gate.
 
 ## Current known status (as of 2026-11-10)
-- Existing work includes market catalogue/cycle discovery, public depth simulation, basic instrument rounding/validation, authenticated read-only OKX account/fee/balance queries, fee-mode simulation foundation, fill reconciliation, Room order journal/migration foundation, and a prototype in-memory risk guard.
+- Existing work includes market catalogue/cycle discovery, public depth simulation, basic instrument rounding/validation, authenticated read-only OKX account/fee/balance queries, fee-mode simulation foundation, fill reconciliation, Room tracked-order journal, and persistent risk controls.
 - Room-backed risk reservations, daily-loss state, durable kill switch storage, and the dashboard risk-control panel are implemented. Persistence and migration tests passed Android CI on commit `c83e35e`.
 - The persistent risk manager is not yet wired into a complete cycle execution path and does not authorize execution.
-- A strict OKX Demo-only Spot limit-order API adapter has been added. It has a fixed `https://openapi.okx.com` host, always sends `x-simulated-trading: 1`, supports submit/query-by-client-ID/cancel, and has no Live-mode parameter or fallback. Unit tests have been added but are pending CI verification.
-- The Demo adapter is not yet connected to durable pre-submit intents, risk reservations, or a sequential three-leg cycle engine. No order submission or cancellation has been invoked; no Live trading exists.
+- A strict OKX Demo-only Spot limit-order API adapter has been added. It has a fixed `https://openapi.okx.com` host, always sends `x-simulated-trading: 1`, supports submit/query-by-client-ID/cancel, and has no Live-mode parameter or fallback. Its unit tests initially failed because Android JSON stubs were used outside Robolectric; the tests now run under Robolectric and await the next CI result.
+- Room v4 adds a durable `order_intents` table with unique client IDs and cycle/leg identity, plus recoverable `PREPARED`, `SUBMITTING`, `UNKNOWN`, and `ACKNOWLEDGED` states. The DAO prevents duplicate cycle-leg intents and supports restart recovery.
+- A submission coordinator persists an intent before calling the Demo adapter, refuses duplicate submissions, and queries by client ID after ambiguous outcomes. It is not yet wired to risk reservations or a sequential three-leg cycle engine. No order submission or cancellation has been invoked; no Live trading exists.
 - Initial 10 USDT is a simulation input only; no funds have been invested or traded.
-- Latest verified CI commit before the Demo adapter work: `c83e35e988a2bc4c7e68241c25f7f8205fdc67f4` (Node tests and Android build passed).
+- Latest known commit for Demo adapter and durable intent journal work: pending final CI verification. The latest Android run on `c223fb3` failed four Demo API tests because the tests were not running under Robolectric; Node tests passed. Fix applied and CI re-triggered.
 - PR #3 remains open/draft; do not merge without explicit user approval.
