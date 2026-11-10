@@ -106,7 +106,8 @@ private fun ArbixGApp() {
                 try {
                     depthValidation = depthEngine.validateUsdtCandidates(
                         candidates = fresh.candidates,
-                        startAmountUsdt = 10.0
+                        startAmountUsdt = 10.0,
+                        instrumentRules = fresh.instrumentRules
                     )
                     depthMessage = if (depthValidation.isEmpty()) {
                         "No USDT-starting candidate selected for depth validation."
@@ -266,15 +267,15 @@ private fun CandidateCard(candidate: TriangularCandidate, depth: DepthValidation
             }
             Text(candidate.instruments.joinToString("  ·  "), color = Muted, fontSize = 10.sp)
             when (depth?.status) {
-                DepthValidationStatus.DEPTH_PASSED_GROSS_ONLY -> {
+                DepthValidationStatus.DEPTH_PASSED_GROSS_ONLY, DepthValidationStatus.DEPTH_PASSED_WITH_RULES_GROSS_ONLY -> {
                     Text("DEPTH PASSED · GROSS ONLY", color = Green, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                     Text("10 USDT → ${String.format("%.8f", depth.finalAmount ?: 0.0)} USDT · gross ${String.format("%.4f", depth.grossReturnPct ?: 0.0)}%", color = Color.White, fontSize = 10.sp)
-                    Text("Fees, lot/minimum rules and account balance are not verified. Not executable profit.", color = Gold, fontSize = 9.sp)
+                    Text(depth.message + " Not executable profit.", color = Gold, fontSize = 9.sp)
                 }
-                DepthValidationStatus.DEPTH_PASSED_WITH_FEE -> {
+                DepthValidationStatus.DEPTH_PASSED_WITH_FEE, DepthValidationStatus.DEPTH_PASSED_WITH_RULES_AND_FEE -> {
                     Text("DEPTH PASSED · SUPPLIED FEE ONLY", color = Green, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                     Text("Final ${String.format("%.8f", depth.finalAmount ?: 0.0)} USDT · net ${String.format("%.4f", depth.netReturnPct ?: 0.0)}%", color = Color.White, fontSize = 10.sp)
-                    Text("Fee rate is user-supplied; exchange fee tier and instrument rules remain unverified.", color = Gold, fontSize = 9.sp)
+                    Text(depth.message + " Fee rate is user-supplied; exchange fee tier and account balance remain unverified.", color = Gold, fontSize = 9.sp)
                 }
                 DepthValidationStatus.DEPTH_REJECTED -> {
                     Text("DEPTH REJECTED", color = Gold, fontSize = 10.sp, fontWeight = FontWeight.Bold)

@@ -9,6 +9,8 @@ import kotlinx.coroutines.sync.withPermit
 enum class DepthValidationStatus {
     DEPTH_PASSED_GROSS_ONLY,
     DEPTH_PASSED_WITH_FEE,
+    DEPTH_PASSED_WITH_RULES_GROSS_ONLY,
+    DEPTH_PASSED_WITH_RULES_AND_FEE,
     DEPTH_REJECTED
 }
 
@@ -41,7 +43,8 @@ class DepthValidationEngine(
         startAmountUsdt: Double = 10.0,
         feeRate: Double? = null,
         now: Long = System.currentTimeMillis(),
-        maxBookAgeMs: Long = 2_000L
+        maxBookAgeMs: Long = 2_000L,
+        instrumentRules: Map<String, SpotInstrumentRules> = emptyMap()
     ): List<DepthValidationItem> {
         require(startAmountUsdt.isFinite() && startAmountUsdt > 0.0)
         require(feeRate == null || (feeRate.isFinite() && feeRate >= 0.0 && feeRate < 1.0))
@@ -95,17 +98,29 @@ class DepthValidationEngine(
                     now = now,
                     maxBookAgeMs = maxBookAgeMs
                 )
-                DepthValidationItem(
-                    candidate = candidate,
-                    status = if (feeRate == null) DepthValidationStatus.DEPTH_PASSED_GROSS_ONLY
-                        else DepthValidationStatus.DEPTH_PASSED_WITH_FEE,
-                    finalAmount = result.finalAmount,
-                    grossReturnPct = result.grossReturnPct,
-                    netReturnPct = if (feeRate == null) null else result.netReturnPct,
-                    message = if (feeRate == null)
-                        "Depth passed for 10 USDT; fee tier not supplied, so this is gross-only."
-                    else "Depth passed using the supplied fee rate; instrument lot/minimum rules are still pending."
+                val rulesCheck = InstrumentRulesValidator.validate(
+                    path = candidate.path,
+                    instrumentIds = candidate.instruments,
+                    books = candidate.instruments.associateWith { books.getValue(it).getOrThrow() },
+                    rules = instrumentRules,
+                    legs = result.legs
                 )
+                if (!rulesCheck.passed) {
+                    DepthValidationItem(
+                        candidate, DepthValidationStatus.DEPTH_REJECTED,
+                        null, null, null, rulesCheck.message
+                    )
+                } else {
+                    DepthValidationItem(
+                        candidate = candidate,
+                        status = if (feeRate == null) DepthValidationStatus.DEPTH_PASSED_WITH_RULES_GROSS_ONLY
+                            else DepthValidationStatus.DEPTH_PASSED_WITH_RULES_AND_FEE,
+                        finalAmount = result.finalAmount,
+                        grossReturnPct = result.grossReturnPct,
+                        netReturnPct = if (feeRate == null) null else result.netReturnPct,
+                        message = rulesCheck.message
+                    )
+                }
             }.getOrElse { error ->
                 DepthValidationItem(
                     candidate, DepthValidationStatus.DEPTH_REJECTED,
