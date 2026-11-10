@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import java.io.IOException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import org.json.JSONObject
 import org.junit.After
@@ -99,6 +101,24 @@ class DemoOrderSubmissionCoordinatorTest {
         val duplicate = coordinator.submitOnce(intent())
         assertTrue(duplicate is DemoOrderSubmissionCoordinator.Result.AlreadyExists)
         assertEquals(1, gateway.submitCalls)
+        database.close()
+    }
+
+    @Test
+    fun preparedIntentFromPriorProcessCanResumeAndConcurrentCallsOnlyPostOnce() = runBlocking {
+        val database = db()
+        val dao = database.orderIntentDao()
+        assertTrue(dao.insertIfAbsent(intent()) > 0L)
+        val gateway = FakeGateway()
+        val coordinator = DemoOrderSubmissionCoordinator(dao, gateway) { now + 1 }
+
+        val first = async(Dispatchers.IO) { coordinator.submitOnce(intent()) }
+        val second = async(Dispatchers.IO) { coordinator.submitOnce(intent()) }
+        val results = listOf(first.await(), second.await())
+
+        assertEquals(1, gateway.submitCalls)
+        assertEquals(1, results.count { it is DemoOrderSubmissionCoordinator.Result.Acknowledged })
+        assertEquals(1, results.count { it is DemoOrderSubmissionCoordinator.Result.AlreadyExists })
         database.close()
     }
 
