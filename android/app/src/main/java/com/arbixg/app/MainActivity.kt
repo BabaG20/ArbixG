@@ -112,7 +112,7 @@ private fun ArbixGApp() {
                     depthMessage = if (depthValidation.isEmpty()) {
                         "No USDT-starting candidate selected for depth validation."
                     } else {
-                        "Depth checked ${depthValidation.size} USDT cycle(s) using public L2 books; fees and lot rules are not yet verified."
+                        "Depth checked ${depthValidation.size} USDT cycle(s) using public L2 books and live lot/minimum/tick rules; account fee tier, minNotional and balance are not verified."
                     }
                 } catch (depthError: Exception) {
                     depthValidation = emptyList()
@@ -271,11 +271,13 @@ private fun CandidateCard(candidate: TriangularCandidate, depth: DepthValidation
                     Text("DEPTH PASSED · GROSS ONLY", color = Green, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                     Text("10 USDT → ${String.format("%.8f", depth.finalAmount ?: 0.0)} USDT · gross ${String.format("%.4f", depth.grossReturnPct ?: 0.0)}%", color = Color.White, fontSize = 10.sp)
                     Text(depth.message + " Not executable profit.", color = Gold, fontSize = 9.sp)
+                    depth.dustSummary?.let { Text("Residual dust: $it", color = Muted, fontSize = 9.sp) }
                 }
                 DepthValidationStatus.DEPTH_PASSED_WITH_FEE, DepthValidationStatus.DEPTH_PASSED_WITH_RULES_AND_FEE -> {
                     Text("DEPTH PASSED · SUPPLIED FEE ONLY", color = Green, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                     Text("Final ${String.format("%.8f", depth.finalAmount ?: 0.0)} USDT · net ${String.format("%.4f", depth.netReturnPct ?: 0.0)}%", color = Color.White, fontSize = 10.sp)
                     Text(depth.message + " Fee rate is user-supplied; exchange fee tier and account balance remain unverified.", color = Gold, fontSize = 9.sp)
+                    depth.dustSummary?.let { Text("Residual dust: $it", color = Muted, fontSize = 9.sp) }
                 }
                 DepthValidationStatus.DEPTH_REJECTED -> {
                     Text("DEPTH REJECTED", color = Gold, fontSize = 10.sp, fontWeight = FontWeight.Bold)
