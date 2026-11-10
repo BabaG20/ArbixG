@@ -19,7 +19,7 @@ class OkxMarketRepository(
     private val connectTimeoutMs: Int = 8_000,
     private val readTimeoutMs: Int = 8_000
 ) {
-    private val watchlist = listOf("BTC-USDT", "ETH-USDT", "SOL-USDT", "PI-USDT")
+    private val watchlist = listOf("BTC-USDT", "ETH-USDT", "SOL-USDT", "XRP-USDT")
 
     suspend fun loadWatchlist(): List<SpotTicker> = withContext(Dispatchers.IO) {
         watchlist.map { instrumentId -> fetchTicker(instrumentId) }
