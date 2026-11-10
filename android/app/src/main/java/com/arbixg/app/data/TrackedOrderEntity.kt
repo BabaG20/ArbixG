@@ -1,10 +1,11 @@
 package com.arbixg.app.data
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
 /** Durable local journal of exchange order state; contains no API credentials. */
-@Entity(tableName = "tracked_orders")
+@Entity(tableName = "tracked_orders", indices = [Index(value = ["locallyUpdatedAtEpochMs"])])
 data class TrackedOrderEntity(
     @PrimaryKey val orderId: String,
     val instrumentId: String,
