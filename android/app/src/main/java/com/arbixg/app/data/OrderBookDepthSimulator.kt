@@ -54,6 +54,7 @@ object OrderBookDepthSimulator {
         require(feeRate.isFinite() && feeRate >= 0.0 && feeRate < 1.0) { "Fee rate must be between 0 and 1." }
 
         var amount = startAmount
+        var grossAmount = startAmount
         val legs = ArrayList<DepthLegResult>(3)
         for (index in 0 until 3) {
             val from = path[index]
@@ -70,6 +71,8 @@ object OrderBookDepthSimulator {
                     consumeAsks(amount, market.orderBook.asks, instrumentId)
                 else -> error("Instrument $instrumentId cannot convert $from to $to.")
             }
+            val grossOutput = convert(grossAmount, from, to, market)
+            grossAmount = grossOutput
             val fee = beforeFee * feeRate
             val afterFee = beforeFee - fee
             require(afterFee.isFinite() && afterFee > 0.0) { "Invalid output after fee for $instrumentId." }
@@ -82,8 +85,7 @@ object OrderBookDepthSimulator {
             amount = afterFee
         }
 
-        val grossFinal = legs.fold(startAmount) { _, leg -> leg.outputBeforeFee }
-        val grossReturn = grossFinal / startAmount
+        val grossReturn = grossAmount / startAmount
         val netReturn = amount / startAmount
         return DepthCycleResult(
             startCurrency = path.first(),
@@ -95,6 +97,15 @@ object OrderBookDepthSimulator {
             legs = legs
         )
     }
+
+    private fun convert(amount: Double, from: String, to: String, market: MarketDepth): Double =
+        when {
+            from == market.baseCurrency && to == market.quoteCurrency ->
+                consumeBids(amount, market.orderBook.bids, market.instrumentId)
+            from == market.quoteCurrency && to == market.baseCurrency ->
+                consumeAsks(amount, market.orderBook.asks, market.instrumentId)
+            else -> error("Instrument ${market.instrumentId} cannot convert $from to $to.")
+        }
 
     private fun consumeBids(baseAmount: Double, bids: List<OrderBookLevel>, instrumentId: String): Double {
         var remaining = baseAmount
