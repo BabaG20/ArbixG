@@ -106,12 +106,18 @@ fun OkxAccountPanel(instrumentIds: List<String>) {
                                     instrumentIds = instrumentIds.take(10),
                                     demoMode = true
                                 )
-                                pendingOrders = api.loadPendingSpotOrders(demoMode = true).map {
-                                    OrderFillReconciler.reconcile(null, it)
+                                try {
+                                    pendingOrders = api.loadPendingSpotOrders(demoMode = true).map {
+                                        OrderFillReconciler.reconcile(null, it)
+                                    }
+                                    status = "OKX demo read-only verification succeeded. Existing pending orders were queried; no orders were submitted or changed."
+                                } catch (orderError: Exception) {
+                                    pendingOrders = emptyList()
+                                    status = "Account balance and fees loaded. Pending-order query failed: ${orderError.message ?: "unknown error"}"
                                 }
-                                status = "OKX demo read-only verification succeeded. Existing pending orders were queried; no orders were submitted or changed."
                             } catch (error: Exception) {
                                 account = null
+                                pendingOrders = emptyList()
                                 status = "Account check failed: ${error.message ?: "unknown error"}"
                             } finally {
                                 busy = false
