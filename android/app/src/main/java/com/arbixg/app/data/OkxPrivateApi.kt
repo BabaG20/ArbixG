@@ -1,6 +1,6 @@
 package com.arbixg.app.data
 
-import android.util.Base64
+import java.util.Base64
 import com.arbixg.app.security.ApiSecretVault
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -141,7 +141,7 @@ class OkxPrivateApi(
             val prehash = timestamp + method.uppercase() + requestPath + body
             val mac = Mac.getInstance("HmacSHA256")
             mac.init(SecretKeySpec(secretKey.toByteArray(StandardCharsets.UTF_8), "HmacSHA256"))
-            return Base64.encodeToString(mac.doFinal(prehash.toByteArray(StandardCharsets.UTF_8)), Base64.NO_WRAP)
+            return Base64.getEncoder().encodeToString(mac.doFinal(prehash.toByteArray(StandardCharsets.UTF_8)))
         }
     }
 }
