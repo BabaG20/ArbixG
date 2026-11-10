@@ -21,11 +21,12 @@ import java.security.MessageDigest
  * always owns the final user confirmation.
  *
  * The public manifest endpoint is intentionally isolated here. It must point
- * to a public HTTPS release-only repository; the application source repo stays private.
+ * to the public updates manifest in this repository. Releases must use the same
+ * stable signing certificate as the installed application.
  */
 object DirectUpdater {
     const val MANIFEST_URL =
-        "https://raw.githubusercontent.com/BabaG20/ArbixG-Updates/main/latest.json"
+        "https://raw.githubusercontent.com/BabaG20/ArbixG/rebuild/okx-triangular-arbitrage-v1/updates/latest.json"
     private const val PACKAGE_NAME = "com.arbixg.app"
     private const val MAX_APK_BYTES = 100L * 1024L * 1024L
     private const val FILE_PROVIDER_SUFFIX = ".updates"
@@ -57,7 +58,7 @@ object DirectUpdater {
                 sha256 = manifest.getString("sha256").lowercase(),
                 releaseNotes = manifest.optString("releaseNotes")
             )
-            require(release.versionName.matches(Regex("""\\d+\\.\\d+\\.\\d+(?:[-+][0-9A-Za-z.-]+)?"""))) { "versionName si sahihi." }
+            require(release.versionName.matches(Regex("""\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?"""))) { "versionName si sahihi." }
             require(release.versionCode > 0 && release.minSupportedVersionCode > 0) { "versionCode si sahihi." }
             require(release.apkUrl.startsWith("https://")) { "APK lazima ipakuliwe kupitia HTTPS." }
             require(release.sha256.matches(Regex("[a-f0-9]{64}"))) { "SHA-256 si sahihi." }
