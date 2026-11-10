@@ -7,7 +7,6 @@ import java.math.BigDecimal
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withContext
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -138,8 +137,9 @@ class PersistentCycleRiskManagerTest {
 
         val reopenedDb = db()
         val reopenedManager = PersistentCycleRiskManager(reopenedDb, limits()) { now }
+        assertFalse(reopenedManager.recordRealizedLoss(BigDecimal("1")).approved)
         assertFalse(reserve(reopenedManager, "loss-limited").approved)
-        assertEquals(BigDecimal("2"), reopenedManager.currentDailyRealizedLoss().add(BigDecimal("1")))
+        assertEquals(BigDecimal("2"), reopenedManager.currentDailyRealizedLoss())
         reopenedDb.close()
     }
 }
