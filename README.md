@@ -11,7 +11,7 @@ Android-first OKX Spot triangular-arbitrage research app.
 - Room local trade-history schema, DataStore settings foundation and Android Keystore AES-GCM credential vault.
 - Android validates fresh public L2 order books for up to 10 selected USDT cycles (4 concurrent requests), floors base quantities to each live instrument's `lotSz` with `BigDecimal`, re-simulates all three legs, checks `minSz`/`tickSz`, and reports residual dust separately from proceeds.
 - Read-only authenticated OKX demo account client signs requests with HMAC-SHA256, stores API credentials encrypted with Android Keystore, and retrieves account level, balances and per-instrument Spot maker/taker fee rates. It can query current pending Spot orders; it does not submit or modify orders.
-- Pure order-fill reconciliation model handles cumulative partial fills, remaining quantity, fees, stale snapshots, overfills and terminal states. This is a tested foundation, not yet a persistent end-to-end execution lifecycle.
+- Order-fill reconciliation handles cumulative partial fills, remaining quantity, fees, stale snapshots, overfills and terminal states. A Room-backed `tracked_orders` journal persists observed order states, and reconnect recovery refreshes locally stored non-terminal orders from the read-only OKX Demo API. Entity round-trip tests cover persisted decimal precision. This journal tracks orders discovered from the pending-order endpoint or previously saved locally; the app still does not create orders.
 - GitHub Actions workflows for Node tests and Android debug APK assembly.
 
 ## Important interpretation
@@ -23,8 +23,8 @@ A candidate shown by the Android scanner is **gross top-of-book discovery only**
 - Android WebSocket market feed integration and robust snapshot/sequence/checksum reconciliation.
 - Android order-book cache and per-candidate depth validation against fresh books.
 - Validation of the authenticated read-only demo account client against a user-created OKX demo API key on a physical device; fee-currency behavior and account fee application are not yet verified end-to-end.
-- Demo Trading order submission, cancel/replace, persistent order lifecycle, idempotency across app restarts, partial-fill recovery/unwind and reconciliation of completed/canceled order history. The current fill reconciler is a pure tested model and pending-order query only.
-- Position/exposure controls, per-cycle and daily loss limits, stale-data guard, slippage caps, kill switch and restart recovery.
+- Demo Trading order submission, cancel/replace, end-to-end lifecycle for app-created orders, idempotent execution intents, partial-fill recovery/unwind, and complete historical reconciliation of orders that disappear from the pending-order endpoint. The local journal recovers orders it has already observed, but does not yet provide an execution coordinator.
+- Position/exposure controls, per-cycle and daily loss limits, execution-grade stale-data guard, slippage caps and kill switch. Local recovery of previously observed non-terminal orders is implemented, but full execution recovery is not.
 - Production signing, release distribution and a verified automatic phone update mechanism.
 - Physical-device network, performance and install/update tests.
 
