@@ -52,6 +52,37 @@ class DepthValidationEngineTest {
         assertNull(result.finalAmount)
     }
 
+    @Test fun appliesPerInstrumentAccountTakerRatesOnlyWhenAllCycleRatesExist() = runBlocking {
+        val now = 1_800_000_000_000L
+        val source = books(now)
+        val engine = DepthValidationEngine(loadOrderBook = { source.getValue(it) })
+        val accountFees = mapOf(
+            "BTC-USDT" to 0.001,
+            "ETH-BTC" to 0.002,
+            "ETH-USDT" to 0.003
+        )
+        val withFees = engine.validateUsdtCandidates(
+            listOf(candidate()),
+            now = now,
+            instrumentRules = rules(),
+            feeRatesByInstrument = accountFees,
+            feeType = 1
+        ).single()
+        assertEquals(DepthValidationStatus.DEPTH_PASSED_WITH_RULES_AND_FEE, withFees.status)
+        assertNotNull(withFees.netReturnPct)
+        assertTrue(withFees.feeModel!!.contains("per-instrument taker rates"))
+
+        val incomplete = engine.validateUsdtCandidates(
+            listOf(candidate()),
+            now = now,
+            instrumentRules = rules(),
+            feeRatesByInstrument = accountFees - "ETH-BTC",
+            feeType = 1
+        ).single()
+        assertEquals(DepthValidationStatus.DEPTH_PASSED_WITH_RULES_GROSS_ONLY, incomplete.status)
+        assertNull(incomplete.netReturnPct)
+    }
+
     @Test fun doesNotRequestNonUsdtStartingCycles() = runBlocking {
         var requests = 0
         val engine = DepthValidationEngine(loadOrderBook = {
