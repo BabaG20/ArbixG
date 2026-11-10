@@ -24,7 +24,7 @@ abstract class OrderIntentDao {
 
     @Query("""
         SELECT * FROM order_intents
-        WHERE state IN ('SUBMITTING', 'UNKNOWN', 'ACKNOWLEDGED')
+        WHERE state IN ('PREPARED', 'SUBMITTING', 'UNKNOWN')
         ORDER BY createdAtEpochMs ASC
     """)
     abstract suspend fun getRecoverable(): List<OrderIntentEntity>
