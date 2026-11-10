@@ -12,7 +12,7 @@ function market(instId, bids, asks) {
 test('walks a three-leg route using executable depth and signed fees', () => {
   const route = [
     { from: 'USDT', to: 'BTC', side: 'buy', market: market('BTC-USDT', [[49900, 2]], [[50000, 2]]) },
-    { from: 'BTC', to: 'ETH', side: 'sell', market: market('ETH-BTC', [[0.06, 2]], [[0.061, 2]]) },
+    { from: 'BTC', to: 'ETH', side: 'buy', market: market('ETH-BTC', [[0.059, 2]], [[0.06, 2]]) },
     { from: 'ETH', to: 'USDT', side: 'sell', market: market('ETH-USDT', [[3100, 2]], [[3110, 2]]) }
   ];
   const result = walkRoute(route, 1000, () => -0.001, now, 5000);
@@ -25,7 +25,7 @@ test('walks a three-leg route using executable depth and signed fees', () => {
 test('rejects stale books', () => {
   const route = [
     { side: 'buy', to: 'BTC', market: { ...market('BTC-USDT', [], [[50000, 1]]), updated: now - 5001 } },
-    { side: 'sell', to: 'ETH', market: market('ETH-BTC', [[0.06, 1]], []) },
+    { side: 'buy', to: 'ETH', market: market('ETH-BTC', [[0.059, 1]], [[0.06, 1]]) },
     { side: 'sell', to: 'USDT', market: market('ETH-USDT', [[3000, 1]], []) }
   ];
   assert.equal(walkRoute(route, 100, () => -0.001, now, 5000), null);
@@ -34,7 +34,7 @@ test('rejects stale books', () => {
 test('rejects insufficient order-book depth', () => {
   const route = [
     { side: 'buy', to: 'BTC', market: market('BTC-USDT', [], [[50000, 0.001]]) },
-    { side: 'sell', to: 'ETH', market: market('ETH-BTC', [[0.06, 1]], []) },
+    { side: 'buy', to: 'ETH', market: market('ETH-BTC', [[0.059, 1]], [[0.06, 1]]) },
     { side: 'sell', to: 'USDT', market: market('ETH-USDT', [[3000, 1]], []) }
   ];
   assert.equal(walkRoute(route, 1000, () => -0.001, now, 5000), null);
@@ -43,7 +43,7 @@ test('rejects insufficient order-book depth', () => {
 test('rejects invalid fee rates', () => {
   const route = [
     { side: 'buy', to: 'BTC', market: market('BTC-USDT', [], [[50000, 1]]) },
-    { side: 'sell', to: 'ETH', market: market('ETH-BTC', [[0.06, 1]], []) },
+    { side: 'buy', to: 'ETH', market: market('ETH-BTC', [[0.059, 1]], [[0.06, 1]]) },
     { side: 'sell', to: 'USDT', market: market('ETH-USDT', [[3000, 1]], []) }
   ];
   assert.equal(walkRoute(route, 100, () => -1, now, 5000), null);
