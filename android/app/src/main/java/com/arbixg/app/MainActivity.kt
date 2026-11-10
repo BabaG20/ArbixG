@@ -74,9 +74,9 @@ private fun ArbixGApp() {
                 retryDelayMs = 15_000L
                 waitMs = 15_000L
             } catch (error: Exception) {
-                // Old opportunities must never remain visible as current market data.
-                snapshot = null
-                connection = "DISCONNECTED"
+                // Keep the last rendered snapshot to avoid screen flicker, but mark it stale.
+                // Execution remains locked; a stale snapshot is never actionable.
+                connection = "STALE / DISCONNECTED"
                 val causeText = generateSequence(error as Throwable?) { it.cause }
                     .mapNotNull { it.message }
                     .firstOrNull { it.contains("Unable to resolve host", ignoreCase = true) }
@@ -114,7 +114,10 @@ private fun ArbixGApp() {
                             Metric("SCAN", "ALL")
                         }
                         Text(errorMessage ?: "Full live SPOT catalogue + ticker snapshot · refresh every 15 seconds", color = Muted, fontSize = 11.sp)
-                        snapshot?.let { Text("Fresh tickers: ${it.tickers.size} · stale rejected: ${it.staleTickerCount} · trading rules retained: ${it.instrumentRules.size}", color = Muted, fontSize = 10.sp) }
+                        if (connection.startsWith("STALE")) {
+                            Text("STALE DATA — displayed for reference only. Do not treat candidates as live opportunities.", color = Gold, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        }
+                        snapshot?.let { Text("Tickers: ${it.tickers.size} · stale rejected: ${it.staleTickerCount} · instrument rules: ${it.instrumentRules.size}", color = Muted, fontSize = 10.sp) }
                         lastSuccessAt?.let {
                             Text("Last successful refresh: ${DateFormat.getDateTimeInstance().format(Date(it))}", color = Muted, fontSize = 9.sp)
                         }
@@ -135,6 +138,9 @@ private fun ArbixGApp() {
                         Text("No positive gross triangular candidates in this snapshot. This is not proof that no opportunity exists between refreshes.", color = Muted, modifier = Modifier.padding(16.dp), fontSize = 12.sp)
                     }
                 } else {
+                    if (connection.startsWith("STALE")) {
+                        Text("Last known candidates · not current · trading disabled", color = Gold, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    }
                     LazyColumn(
                         modifier = Modifier.weight(1f),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
