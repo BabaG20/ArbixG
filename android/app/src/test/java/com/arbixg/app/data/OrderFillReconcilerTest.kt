@@ -2,7 +2,13 @@ package com.arbixg.app.data
 
 import org.junit.Assert.*
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+import org.json.JSONObject
 
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [35])
 class OrderFillReconcilerTest {
     private fun snapshot(state: String, filled: String, time: Long, size: String = "1.0") =
         OkxOrderSnapshot(
@@ -68,4 +74,38 @@ class OrderFillReconcilerTest {
             fail("Fill regression must be rejected.")
         } catch (_: IllegalArgumentException) { }
     }
+
+    @Test fun parsesActualExchangeFillFieldsFromFullOrderQuery() {
+        val raw = JSONObject(
+            """{"sz":"0.5","accFillSz":"0.25","avgPx":"64000.10","fee":"-0.00001","feeCcy":"BTC","uTime":"1767225600123","state":"partially_filled"}"""
+        )
+        val result = OkxDemoOrderResult(
+            orderId = "987654",
+            clientOrderId = "CycleLeg0001",
+            instrumentId = "BTC-USDT",
+            state = "live",
+            raw = raw
+        ).toOrderSnapshot()
+
+        assertEquals("0.5", result.requestedSize)
+        assertEquals("0.25", result.cumulativeFilledSize)
+        assertEquals("64000.10", result.averageFillPrice)
+        assertEquals("-0.00001", result.cumulativeFee)
+        assertEquals("BTC", result.feeCurrency)
+        assertEquals(1767225600123L, result.updateTimeEpochMs)
+        assertEquals("partially_filled", result.exchangeState)
+    }
+
+    @Test fun rejectsSparsePlaceAcknowledgementAsFillEvidence() {
+        val raw = JSONObject("""{"ordId":"987654","clOrdId":"CycleLeg0001","sCode":"0","sMsg":""}""")
+        val acknowledgement = OkxDemoOrderResult(
+            orderId = "987654",
+            clientOrderId = "CycleLeg0001",
+            instrumentId = "BTC-USDT",
+            state = "",
+            raw = raw
+        )
+        assertTrue(runCatching { acknowledgement.toOrderSnapshot() }.isFailure)
+    }
+
 }
