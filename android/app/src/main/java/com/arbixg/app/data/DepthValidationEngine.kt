@@ -96,7 +96,8 @@ class DepthValidationEngine(
                     startAmount = startAmountUsdt,
                     feeRate = feeRate ?: 0.0,
                     now = now,
-                    maxBookAgeMs = maxBookAgeMs
+                    maxBookAgeMs = maxBookAgeMs,
+                    instrumentRules = instrumentRules
                 )
                 val rulesCheck = InstrumentRulesValidator.validate(
                     path = candidate.path,
