@@ -42,10 +42,15 @@ class DemoOrderSubmissionCoordinator(
             return Result.NotSubmitted("Existing order intent does not match this request.")
         }
 
-        // A duplicate invocation is never permission to repeat a POST.
-        if (inserted < 0L) return Result.AlreadyExists(persisted)
+        // A PREPARED intent is safe to resume: no network request is allowed until
+        // the durable transition to SUBMITTING wins. Only one concurrent caller can win.
+        if (inserted < 0L && persisted.state != OrderIntentEntity.PREPARED) {
+            return Result.AlreadyExists(persisted)
+        }
         if (!journal.markSubmitting(intent.clientOrderId, clock())) {
-            return Result.NotSubmitted("Could not atomically move the durable intent to SUBMITTING.")
+            return Result.AlreadyExists(
+                journal.get(intent.clientOrderId) ?: persisted
+            )
         }
 
         return try {
@@ -59,8 +64,9 @@ class DemoOrderSubmissionCoordinator(
                 )
             )
             // If this local write fails, SUBMITTING remains recoverable after restart.
-            journal.markAcknowledged(intent.clientOrderId, order.orderId, clock())
-            Result.Acknowledged(order)
+            val saved = journal.markAcknowledged(intent.clientOrderId, order.orderId, clock())
+            if (saved) Result.Acknowledged(order)
+            else Result.Ambiguous(intent.clientOrderId, "JournalAcknowledgementNotPersisted")
         } catch (cancelled: CancellationException) {
             // Leave SUBMITTING durable; startup recovery must query OKX before any further action.
             throw cancelled
@@ -81,8 +87,9 @@ class DemoOrderSubmissionCoordinator(
 
         return try {
             val order = demoApi.queryByClientOrderId(intent.instrumentId, intent.clientOrderId)
-            journal.markAcknowledged(intent.clientOrderId, order.orderId, clock())
-            Result.Acknowledged(order)
+            val saved = journal.markAcknowledged(intent.clientOrderId, order.orderId, clock())
+            if (saved) Result.Acknowledged(order)
+            else Result.Ambiguous(intent.clientOrderId, "JournalAcknowledgementNotPersisted")
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (failure: Exception) {
