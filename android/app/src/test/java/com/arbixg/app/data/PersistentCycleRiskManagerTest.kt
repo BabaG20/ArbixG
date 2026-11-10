@@ -30,7 +30,8 @@ class PersistentCycleRiskManagerTest {
         databaseName
     ).allowMainThreadQueries().addMigrations(
         ArbixDatabase.MIGRATION_1_2,
-        ArbixDatabase.MIGRATION_2_3
+        ArbixDatabase.MIGRATION_2_3,
+        ArbixDatabase.MIGRATION_3_4
     ).build()
 
     private fun limits() = RiskLimits(
@@ -172,6 +173,7 @@ class PersistentCycleRiskManagerTest {
         )
         assertEquals("OPEN", migrated.trackedOrderDao().getByOrderId("after-v1-migration")?.status)
         assertTrue(migrated.riskStateDao().getState() == null)
+        assertTrue(migrated.orderIntentDao().getRecoverable().isEmpty())
         migrated.close()
     }
 
@@ -230,6 +232,7 @@ class PersistentCycleRiskManagerTest {
         assertEquals("USDT-BTC-ETH-USDT", trades.single().route)
         assertEquals("FILLED", order?.status)
         assertTrue(migrated.riskStateDao().getState() == null)
+        assertTrue(migrated.orderIntentDao().getRecoverable().isEmpty())
         migrated.close()
     }
 
