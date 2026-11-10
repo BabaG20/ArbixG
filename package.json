@@ -1,0 +1,9 @@
+{
+  "name": "arbixg",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "OKX-only triangular arbitrage research and execution platform",
+  "engines": { "node": ">=20" },
+  "scripts": { "test": "node --test", "test:watch": "node --test --watch" }
+}
