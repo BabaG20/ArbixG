@@ -33,10 +33,10 @@ class DepthValidationEngineTest {
         val engine = DepthValidationEngine(loadOrderBook = { source.getValue(it) })
         val result = engine.validateUsdtCandidates(listOf(candidate()), now = now, instrumentRules = rules()).single()
 
-        assertEquals(DepthValidationStatus.DEPTH_PASSED_GROSS_ONLY, result.status)
+        assertEquals(DepthValidationStatus.DEPTH_PASSED_WITH_RULES_GROSS_ONLY, result.status)
         assertTrue("Depth simulation should return the calculated output amount", result.finalAmount!! > 10.0)
         assertNull(result.netReturnPct)
-        assertTrue(result.message.contains("gross-only"))
+        assertTrue(result.message.contains("minNotional is not exposed"))
     }
 
     @Test fun reportsInsufficientDepthAsRejected() = runBlocking {
