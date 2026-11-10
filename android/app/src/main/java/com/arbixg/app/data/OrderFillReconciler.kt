@@ -31,6 +31,43 @@ data class ReconciledOrder(
     val lastExchangeUpdateEpochMs: Long
 )
 
+/**
+ * Converts a full OKX order-query payload into the normalized snapshot used by
+ * the fill reconciler. Sparse place acknowledgements are deliberately rejected:
+ * the next leg must be based on a full exchange order query, not an ack.
+ */
+fun OkxDemoOrderResult.toOrderSnapshot(): OkxOrderSnapshot {
+    val requested = raw.optString("sz")
+    val filled = raw.optString("accFillSz")
+    val average = raw.optString("avgPx")
+    val fee = raw.optString("fee")
+    val updateTime = raw.optString("uTime").toLongOrNull() ?: 0L
+    require(requested.toBigDecimalOrNull()?.signum() == 1) {
+        "OKX order query omitted a valid requested size."
+    }
+    require(filled.toBigDecimalOrNull() != null) {
+        "OKX order query omitted a valid cumulative filled size."
+    }
+    require(average.toBigDecimalOrNull() != null) {
+        "OKX order query omitted a valid average fill price."
+    }
+    require(fee.toBigDecimalOrNull() != null) {
+        "OKX order query omitted the cumulative fee; realized proceeds cannot be trusted."
+    }
+    require(updateTime > 0L) { "OKX order query omitted a valid exchange update timestamp." }
+    return OkxOrderSnapshot(
+        orderId = orderId,
+        instrumentId = instrumentId,
+        exchangeState = raw.optString("state", state),
+        requestedSize = requested,
+        cumulativeFilledSize = filled,
+        averageFillPrice = average,
+        cumulativeFee = fee,
+        feeCurrency = raw.optString("feeCcy").takeIf { it.isNotBlank() },
+        updateTimeEpochMs = updateTime
+    )
+}
+
 /** Pure, idempotent reconciliation of OKX order snapshots. No order actions are sent. */
 object OrderFillReconciler {
     fun reconcile(previous: ReconciledOrder?, incoming: OkxOrderSnapshot): ReconciledOrder {
