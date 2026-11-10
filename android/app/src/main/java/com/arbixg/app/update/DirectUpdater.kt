@@ -203,21 +203,21 @@ object DirectUpdater {
     private fun installedInfo(context: Context): PackageInfo =
         if (Build.VERSION.SDK_INT >= 33) {
             context.packageManager.getPackageInfo(PACKAGE_NAME, PackageManager.PackageInfoFlags.of(
-                PackageManager.GET_SIGNING_CERTIFICATES.toLong()
+                (if (Build.VERSION.SDK_INT >= 28) PackageManager.GET_SIGNING_CERTIFICATES else PackageManager.GET_SIGNATURES).toLong()
             ))
         } else {
             @Suppress("DEPRECATION")
-            context.packageManager.getPackageInfo(PACKAGE_NAME, PackageManager.GET_SIGNING_CERTIFICATES)
+            context.packageManager.getPackageInfo(PACKAGE_NAME, if (Build.VERSION.SDK_INT >= 28) PackageManager.GET_SIGNING_CERTIFICATES else PackageManager.GET_SIGNATURES)
         }
 
     private fun archiveInfo(context: Context, file: File): PackageInfo? =
         if (Build.VERSION.SDK_INT >= 33) {
             context.packageManager.getPackageArchiveInfo(file.absolutePath, PackageManager.PackageInfoFlags.of(
-                PackageManager.GET_SIGNING_CERTIFICATES.toLong()
+                (if (Build.VERSION.SDK_INT >= 28) PackageManager.GET_SIGNING_CERTIFICATES else PackageManager.GET_SIGNATURES).toLong()
             ))
         } else {
             @Suppress("DEPRECATION")
-            context.packageManager.getPackageArchiveInfo(file.absolutePath, PackageManager.GET_SIGNING_CERTIFICATES)
+            context.packageManager.getPackageArchiveInfo(file.absolutePath, if (Build.VERSION.SDK_INT >= 28) PackageManager.GET_SIGNING_CERTIFICATES else PackageManager.GET_SIGNATURES)
         }
 
     private fun signerDigests(context: Context, info: PackageInfo): Set<String> {
