@@ -6,9 +6,11 @@ A clean rebuild of the Android-first triangular arbitrage platform, starting wit
 
 - OKX public REST client: spot instruments, tickers, and order books.
 - Reconnecting OKX public WebSocket adapter with subscriptions, heartbeat, status reporting and bounded exponential reconnect.
+- Initial native Android Jetpack Compose shell using a distinct application ID (`com.arbixg.app`) so it can be installed beside the old APK.
+- Room local trade-history schema, DataStore settings foundation, and Android Keystore AES-GCM credential vault.
 - Directed three-market route scanner using top-of-book bid/ask conversion.
 - Depth-aware three-leg simulator that consumes actual order-book levels, applies an explicitly supplied fee, and rejects stale or insufficient books.
-- Net profitability is deliberately unavailable until the user's actual OKX fee rate is supplied.
+- Net profitability is deliberately unavailable until the user's actual OKX fee rate is supplied. The current simulator models the fee as a deduction from each leg's output asset; OKX fee-currency behavior and account fee retrieval still need exchange-specific verification.
 - Unit tests use synthetic fixtures only; fixtures are not live market data.
 - No private API keys, account balances, order placement, or automated trading are implemented yet.
 
