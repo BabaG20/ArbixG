@@ -62,18 +62,29 @@ private fun ArbixGApp() {
     var lastSuccessAt by remember { mutableStateOf<Long?>(null) }
 
     LaunchedEffect(repository) {
+        var retryDelayMs = 15_000L
         while (true) {
+            var waitMs = 15_000L
             try {
                 val fresh = repository.loadAllSpotMarkets()
                 snapshot = fresh
                 connection = "LIVE SNAPSHOT"
                 errorMessage = null
                 lastSuccessAt = System.currentTimeMillis()
+                retryDelayMs = 15_000L
+                waitMs = 15_000L
             } catch (error: Exception) {
+                // Old opportunities must never remain visible as current market data.
+                snapshot = null
                 connection = "DISCONNECTED"
-                errorMessage = error.message ?: "Unable to load OKX markets"
+                val causeText = generateSequence(error as Throwable?) { it.cause }
+                    .mapNotNull { it.message }
+                    .firstOrNull { it.contains("Unable to resolve host", ignoreCase = true) }
+                errorMessage = causeText ?: (error.message ?: "Unable to load OKX markets")
+                waitMs = retryDelayMs
+                retryDelayMs = (retryDelayMs * 2).coerceAtMost(120_000L)
             }
-            delay(15_000)
+            delay(waitMs)
         }
     }
 
@@ -113,7 +124,11 @@ private fun ArbixGApp() {
                 val candidates = snapshot?.candidates.orEmpty()
                 if (snapshot == null) {
                     Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(14.dp)) {
-                        Text(errorMessage ?: "Loading all OKX Spot markets…", color = Muted, modifier = Modifier.padding(16.dp), fontSize = 12.sp)
+                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(if (errorMessage == null) "Loading all OKX Spot markets…" else "No current market data — candidates are hidden until a fresh OKX response arrives.", color = Muted, fontSize = 12.sp)
+                            errorMessage?.let { Text(it, color = Gold, fontSize = 11.sp) }
+                            lastSuccessAt?.let { Text("Last successful snapshot: ${DateFormat.getDateTimeInstance().format(Date(it))}", color = Muted, fontSize = 10.sp) }
+                        }
                     }
                 } else if (candidates.isEmpty()) {
                     Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(14.dp)) {
