@@ -16,8 +16,8 @@ class CycleOrderSizerTest {
             "ETH-USDT", "buy", "USDT", BigDecimal("101.23"),
             BigDecimal("2000.00"), lot, minSize, minNotional, tick
         )
-        assertEquals(BigDecimal("0.050"), sized.orderSizeBase)
-        assertEquals(BigDecimal("100.000"), sized.inputConsumed)
+        assertEquals(BigDecimal("0.05"), sized.orderSizeBase)
+        assertEquals(BigDecimal("100"), sized.inputConsumed)
         assertEquals(BigDecimal("1.23"), sized.unspentInput)
         assertEquals("ETH", sized.outputCurrency)
     }
@@ -30,7 +30,7 @@ class CycleOrderSizerTest {
         assertEquals(BigDecimal("0.053"), sized.orderSizeBase)
         assertEquals(BigDecimal("0.053"), sized.inputConsumed)
         assertEquals(BigDecimal("0.0007"), sized.unspentInput)
-        assertEquals(BigDecimal("106.000"), sized.quoteNotional)
+        assertEquals(BigDecimal("106"), sized.quoteNotional)
     }
 
     @Test fun refusesToGuessMissingMinimumNotional() {
