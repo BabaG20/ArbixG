@@ -99,7 +99,7 @@ class DepthValidationEngine(
             runCatching {
                 val candidateFeeRates = feeRatesByInstrument
                     ?.filterKeys { it in candidate.instruments }
-                    ?.takeIf { feeType in 0..1 && candidate.instruments.all(it::containsKey) }
+                    ?.takeIf { feeType != null && feeType in 0..1 && candidate.instruments.all(it::containsKey) }
                 val useAccountFees = candidateFeeRates != null
                 val useLegacyFee = !useAccountFees && feeRate != null
                 val result = OrderBookDepthSimulator.simulateCycle(
