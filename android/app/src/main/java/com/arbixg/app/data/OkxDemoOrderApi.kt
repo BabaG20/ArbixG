@@ -162,8 +162,10 @@ class OkxDemoOrderApi(
     ): OkxDemoOrderResult {
         val item = root.optJSONArray("data")?.optJSONObject(0)
             ?: error("OKX Demo response did not contain an order.")
-        val instrumentId = item.optString("instId")
-        val clientOrderId = item.optString("clOrdId")
+        // Place/cancel acknowledgements may omit instId; retain the request identity only
+        // when the response omits it, while rejecting any conflicting non-empty value.
+        val instrumentId = item.optString("instId").ifBlank { expectedInstrumentId }
+        val clientOrderId = item.optString("clOrdId").ifBlank { expectedClientOrderId }
         val orderId = item.optString("ordId")
         require(instrumentId == expectedInstrumentId && clientOrderId == expectedClientOrderId) {
             "OKX Demo response order identity did not match the request."
