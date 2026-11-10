@@ -102,7 +102,8 @@ private fun ArbixGApp() {
                             Metric("CANDIDATES", snapshot?.candidates?.size?.toString() ?: "—")
                             Metric("SCAN", "ALL")
                         }
-                        Text(errorMessage ?: "Full live SPOT ticker snapshot · refresh every 15 seconds", color = Muted, fontSize = 11.sp)
+                        Text(errorMessage ?: "Full live SPOT catalogue + ticker snapshot · refresh every 15 seconds", color = Muted, fontSize = 11.sp)
+                        snapshot?.let { Text("Fresh tickers: ${it.tickers.size} · stale rejected: ${it.staleTickerCount} · trading rules retained: ${it.instrumentRules.size}", color = Muted, fontSize = 10.sp) }
                         lastSuccessAt?.let {
                             Text("Last successful refresh: ${DateFormat.getDateTimeInstance().format(Date(it))}", color = Muted, fontSize = 9.sp)
                         }
@@ -131,7 +132,9 @@ private fun ArbixGApp() {
                 Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(14.dp)) {
                     Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                         Text("EXECUTION GATES", color = Gold, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                        StatusLine("Market discovery", "All live Spot tickers")
+                        StatusLine("Market discovery", "All live Spot instruments")
+                        StatusLine("Ticker freshness", "Rejects data older than 60 seconds")
+                        StatusLine("Instrument rules", "Lot / min size / tick size retained")
                         StatusLine("Candidate status", "Gross only · unverified")
                         StatusLine("Order-book depth / fees", "Not validated")
                         StatusLine("Demo / live orders", "Not connected · locked")
