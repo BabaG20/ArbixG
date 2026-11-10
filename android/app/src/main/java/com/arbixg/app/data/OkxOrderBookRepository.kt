@@ -20,8 +20,10 @@ data class SpotOrderBook(
         val bestBid = bids.first().price
         val bestAsk = asks.first().price
         return bestBid > 0.0 && bestAsk > 0.0 && bestBid <= bestAsk &&
-            bids.all { it.price > 0.0 && it.size > 0.0 } &&
-            asks.all { it.price > 0.0 && it.size > 0.0 }
+            bids.all { it.price.isFinite() && it.size.isFinite() && it.price > 0.0 && it.size > 0.0 } &&
+            asks.all { it.price.isFinite() && it.size.isFinite() && it.price > 0.0 && it.size > 0.0 } &&
+            bids.zipWithNext().all { (left, right) -> left.price >= right.price } &&
+            asks.zipWithNext().all { (left, right) -> left.price <= right.price }
     }
 
     fun bidDepthBase(): Double = bids.sumOf { it.size }
