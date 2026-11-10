@@ -116,7 +116,10 @@ fun OkxAccountPanel(instrumentIds: List<String>) {
                                 var refreshFailures = 0
 
                                 // Recover locally journaled orders after restart. Isolate failures per order.
-                                journal.getRecent().forEach { previous ->
+                                journal.getRecent().filter { previous ->
+                                    previous.status == com.arbixg.app.data.ReconciledOrderStatus.OPEN ||
+                                        previous.status == com.arbixg.app.data.ReconciledOrderStatus.PARTIALLY_FILLED
+                                }.forEach { previous ->
                                     try {
                                         val fresh = api.loadOrderSnapshot(previous.instrumentId, previous.orderId, demoMode = true)
                                         val reconciled = OrderFillReconciler.reconcile(previous, fresh)
