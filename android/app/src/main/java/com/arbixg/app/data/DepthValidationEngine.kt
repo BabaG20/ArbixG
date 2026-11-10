@@ -20,7 +20,8 @@ data class DepthValidationItem(
     val finalAmount: Double?,
     val grossReturnPct: Double?,
     val netReturnPct: Double?,
-    val message: String
+    val message: String,
+    val dustSummary: String? = null
 )
 
 /**
@@ -119,7 +120,10 @@ class DepthValidationEngine(
                         finalAmount = result.finalAmount,
                         grossReturnPct = result.grossReturnPct,
                         netReturnPct = if (feeRate == null) null else result.netReturnPct,
-                        message = rulesCheck.message
+                        message = rulesCheck.message,
+                        dustSummary = result.legs.filter { it.dustAmount > 0.0 }
+                            .joinToString(" · ") { "${it.instrumentId}: ${String.format("%.8f", it.dustAmount)} ${it.dustCurrency}" }
+                            .ifBlank { "No residual dust at the simulated precision." }
                     )
                 }
             }.getOrElse { error ->
