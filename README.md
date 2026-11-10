@@ -5,6 +5,7 @@ A clean rebuild of the Android-first triangular arbitrage platform, starting wit
 ## Current implementation status
 
 - OKX public REST client: spot instruments, tickers, and order books.
+- Reconnecting OKX public WebSocket adapter with subscriptions, heartbeat, status reporting and bounded exponential reconnect.
 - Directed three-market route scanner using top-of-book bid/ask conversion.
 - Depth-aware three-leg simulator that consumes actual order-book levels, applies an explicitly supplied fee, and rejects stale or insufficient books.
 - Net profitability is deliberately unavailable until the user's actual OKX fee rate is supplied.
