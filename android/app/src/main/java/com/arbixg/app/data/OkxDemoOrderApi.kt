@@ -75,7 +75,7 @@ private class UrlConnectionOkxDemoTransport(
             connection.requestMethod = method
             connection.connectTimeout = connectTimeoutMs
             connection.readTimeout = readTimeoutMs
-            headers.forEach(connection::setRequestProperty)
+            headers.forEach { (name, value) -> connection.setRequestProperty(name, value) }
             if (method == "POST") {
                 connection.doOutput = true
                 connection.setRequestProperty("Content-Type", "application/json")
