@@ -136,6 +136,11 @@ object OrderBookDepthSimulator {
                 val baseQty = executedBase.toDouble()
                 val quoteSpent = consumeAsksForBase(baseQty, market.orderBook.asks, id)
                 val residual = (requestedQuote - BigDecimal.valueOf(quoteSpent)).max(BigDecimal.ZERO)
+                val allowedDust = lot?.let { it.multiply(BigDecimal.valueOf(marginalAskPrice(baseQty, market.orderBook.asks, id))) }
+                if ((allowedDust == null && residual > BigDecimal.valueOf(EPSILON)) ||
+                    (allowedDust != null && residual > allowedDust.add(BigDecimal.valueOf(EPSILON)))) {
+                    error("Insufficient ask depth for $id; quote budget could not be filled within one lot-size remainder.")
+                }
                 Conversion(
                     output = baseQty,
                     executedBase = baseQty,
@@ -218,6 +223,17 @@ object OrderBookDepthSimulator {
             if (remaining <= EPSILON) return quoteSpent
         }
         error("Insufficient ask depth for $id; unfilled base amount=$remaining.")
+    }
+
+
+    private fun marginalAskPrice(baseAmount: Double, asks: List<OrderBookLevel>, id: String): Double {
+        var remaining = baseAmount
+        for (level in asks) {
+            validateLevel(level, id)
+            remaining -= minOf(remaining, level.size)
+            if (remaining <= EPSILON) return level.price
+        }
+        error("Insufficient ask depth for $id.")
     }
 
     private fun levelsNeededForSell(amount: Double, levels: List<OrderBookLevel>): Int {
