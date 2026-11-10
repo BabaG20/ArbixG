@@ -14,11 +14,11 @@ The native Android app now has an updater foundation in `android/app/src/main/ja
 
 ## Public update feed required
 
-The source repository `BabaG20/ArbixG` remains private. A phone cannot anonymously fetch a release manifest or APK from a private GitHub repository. The app is configured to read:
+The source repository `BabaG20/ArbixG` is public. The app is configured to read the manifest from the working branch:
 
-`https://raw.githubusercontent.com/BabaG20/ArbixG-Updates/main/latest.json`
+`https://raw.githubusercontent.com/BabaG20/ArbixG/rebuild/okx-triangular-arbitrage-v1/updates/latest.json`
 
-A separate **public release-only repository** named `ArbixG-Updates` must exist and contain `latest.json` plus the APK release asset. It must contain no source code, keys, passwords, API credentials or other secrets. This repository creation and publication is not complete yet.
+The production `updates/latest.json` and a signed APK release have **not** been published yet. Do not publish a placeholder checksum or a debug APK as a production update. When the first stable release is ready, publish the manifest and matching signed APK in this repository (preferably as a GitHub Release asset) and update the manifest URL to `main` only after the release branch is deliberately merged.
 
 The manifest schema is shown in `updates/latest.example.json`. The `apkUrl` must be a public HTTPS URL for the exact APK whose SHA-256 is in the manifest.
 
@@ -30,7 +30,7 @@ If the currently installed test APK is debug-signed with an ephemeral CI key, a 
 
 ## Not yet production-ready
 
-- The public release-only repository and `latest.json` are not published.
+- The production `updates/latest.json` and signed APK release are not published.
 - Stable release signing key/secrets are not configured.
 - The exact signing certificate of the APK currently installed on the user's phone has not been verified.
 - Android CI must pass after the updater integration.
