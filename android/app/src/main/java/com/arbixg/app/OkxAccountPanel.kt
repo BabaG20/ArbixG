@@ -46,6 +46,7 @@ fun OkxAccountPanel(instrumentIds: List<String>) {
     var account by remember { mutableStateOf<OkxAccountSnapshot?>(null) }
     var pendingOrders by remember { mutableStateOf<List<ReconciledOrder>>(emptyList()) }
     var busy by remember { mutableStateOf(false) }
+    var expanded by remember { mutableStateOf(false) }
 
     Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF151F31)), shape = RoundedCornerShape(14.dp)) {
         Column(
@@ -53,6 +54,8 @@ fun OkxAccountPanel(instrumentIds: List<String>) {
             verticalArrangement = Arrangement.spacedBy(7.dp)
         ) {
             Text("OKX ACCOUNT · READ-ONLY DEMO CHECK", color = Color(0xFFE7B95B), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            OutlinedButton(onClick = { expanded = !expanded }) { Text(if (expanded) "Hide account settings" else "Configure OKX account") }
+            if (expanded) {
             Text("Use an API key with Read permission only. Do not enable Trade or Withdraw. Credentials are encrypted with Android Keystore and are never sent to GitHub.", color = Color(0xFF9AA8BC), fontSize = 10.sp)
             OutlinedTextField(
                 value = apiKey,
@@ -161,6 +164,7 @@ fun OkxAccountPanel(instrumentIds: List<String>) {
                         Text("${order.instrumentId} · ${order.status} · filled ${order.cumulativeFilledSize}/${order.requestedSize} · remaining ${order.remainingSize}", color = Color(0xFF9AA8BC), fontSize = 10.sp)
                     }
                 }
+            }
             }
         }
     }
