@@ -41,7 +41,8 @@ object OrderFillReconciler {
         val requested = decimal(incoming.requestedSize, "requested size")
         val filled = decimal(incoming.cumulativeFilledSize, "cumulative filled size")
         val average = incoming.averageFillPrice.toBigDecimalOrNull()
-        val fee = incoming.cumulativeFee.toBigDecimalOrNull() ?: error("Cumulative fee is invalid.")
+        val fee = incoming.cumulativeFee.toBigDecimalOrNull()
+            ?: if (incoming.cumulativeFee.isBlank()) BigDecimal.ZERO else error("Cumulative fee is invalid.")
         require(requested > BigDecimal.ZERO) { "Requested size must be positive." }
         require(filled >= BigDecimal.ZERO && filled <= requested) {
             "Cumulative filled size must be between zero and requested size."
