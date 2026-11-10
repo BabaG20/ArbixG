@@ -112,7 +112,8 @@ private fun ArbixGApp() {
                     }
                     val accountFeeRates = if (usableAccount == null) null else {
                         val parsed = usableAccount.fees.mapNotNull { fee ->
-                            fee.takerRate.toDoubleOrNull()?.takeIf { it.isFinite() && it >= 0.0 && it < 1.0 }
+                            fee.takerRate.toDoubleOrNull()?.let { kotlin.math.abs(it) }
+                                ?.takeIf { it.isFinite() && it < 1.0 }
                                 ?.let { fee.instrumentId to it }
                         }.toMap()
                         parsed.takeIf { it.size == usableAccount.fees.size }
