@@ -5,7 +5,12 @@ import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [35])
 class OkxDemoOrderApiTest {
     private val credentials = OkxCredentials("demo-key", "demo-secret", "demo-pass")
     private val timestamp = "2026-01-01T00:00:00.000Z"
