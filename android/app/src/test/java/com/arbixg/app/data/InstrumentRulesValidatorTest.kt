@@ -19,9 +19,9 @@ class InstrumentRulesValidatorTest {
     }
 
     private fun legs() = listOf(
-        DepthLegResult("BTC-USDT", "USDT", "BTC", 10.0, 0.099, 0.0, 0.099, 1, executedBaseQuantity = 0.099, quoteAmount = 10.0),
-        DepthLegResult("ETH-BTC", "BTC", "ETH", 0.099, 1.62, 0.0, 1.62, 1, executedBaseQuantity = 1.62, quoteAmount = 0.099),
-        DepthLegResult("ETH-USDT", "ETH", "USDT", 1.62, 11.34, 0.0, 11.34, 1, executedBaseQuantity = 1.62, quoteAmount = 11.34)
+        DepthLegResult("BTC-USDT", "USDT", "BTC", 10.0, 0.099, 0.0, 0.099, levelsConsumed = 1, executedBaseQuantity = 0.099, quoteAmount = 10.0),
+        DepthLegResult("ETH-BTC", "BTC", "ETH", 0.099, 1.62, 0.0, 1.62, levelsConsumed = 1, executedBaseQuantity = 1.62, quoteAmount = 0.099),
+        DepthLegResult("ETH-USDT", "ETH", "USDT", 1.62, 11.34, 0.0, 11.34, levelsConsumed = 1, executedBaseQuantity = 1.62, quoteAmount = 11.34)
     )
 
     @Test fun acceptsAlreadyRoundedExecutedQuantities() {
