@@ -63,9 +63,10 @@
 
 ## Current known status (as of 2026-11-10)
 - Existing work includes market catalogue/cycle discovery, public depth simulation, basic instrument rounding/validation, authenticated read-only OKX account/fee/balance queries, fee-mode simulation foundation, fill reconciliation, Room order journal/migration foundation, and a prototype in-memory risk guard.
-- Room-backed risk reservations, daily-loss state, durable kill switch storage, and a dashboard risk-control panel have been implemented; persistence and v1/v2 migration tests have been added but still require CI verification.
+- Room-backed risk reservations, daily-loss state, durable kill switch storage, and the dashboard risk-control panel are implemented. Persistence and migration tests passed Android CI on commit `c83e35e`.
 - The persistent risk manager is not yet wired into a complete cycle execution path and does not authorize execution.
-- No order submission/cancel/amend or live trading is implemented.
+- A strict OKX Demo-only Spot limit-order API adapter has been added. It has a fixed `https://openapi.okx.com` host, always sends `x-simulated-trading: 1`, supports submit/query-by-client-ID/cancel, and has no Live-mode parameter or fallback. Unit tests have been added but are pending CI verification.
+- The Demo adapter is not yet connected to durable pre-submit intents, risk reservations, or a sequential three-leg cycle engine. No order submission or cancellation has been invoked; no Live trading exists.
 - Initial 10 USDT is a simulation input only; no funds have been invested or traded.
-- Latest known branch head at checklist creation: `b49dc00ca96d820c2aa8bedb7a9bbd1d3e9371a5`. Verify current CI before treating the build as passing.
+- Latest verified CI commit before the Demo adapter work: `c83e35e988a2bc4c7e68241c25f7f8205fdc67f4` (Node tests and Android build passed).
 - PR #3 remains open/draft; do not merge without explicit user approval.
