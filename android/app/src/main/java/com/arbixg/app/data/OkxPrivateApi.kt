@@ -197,12 +197,26 @@ class OkxPrivateApi(
         holdings
     }
 
-    /** Read-only list of current Spot orders (up to OKX's requested page size). */
+    /** Read-only, fully paginated list of current incomplete Spot orders. */
     suspend fun loadPendingSpotOrders(demoMode: Boolean): List<OkxOrderSnapshot> = withContext(Dispatchers.IO) {
-        val data = get("/api/v5/trade/orders-pending?instType=SPOT&limit=100", demoMode).getJSONArray("data")
-        buildList {
-            for (i in 0 until data.length()) add(parseOrder(data.getJSONObject(i)))
+        val orders = ArrayList<OkxOrderSnapshot>()
+        var after: String? = null
+        var page = 0
+        while (true) {
+            val cursor = after?.let { "&after=$it" }.orEmpty()
+            val data = get("/api/v5/trade/orders-pending?instType=SPOT&limit=100$cursor", demoMode)
+                .getJSONArray("data")
+            for (i in 0 until data.length()) orders += parseOrder(data.getJSONObject(i))
+            page++
+            if (data.length() < 100) break
+            val nextAfter = data.optJSONObject(data.length() - 1)?.optString("ordId").orEmpty()
+            require(nextAfter.isNotBlank() && nextAfter != after) {
+                "Pending Spot order pagination did not advance; order snapshot is incomplete."
+            }
+            after = nextAfter
+            require(page < 1_000) { "Pending Spot order history exceeded the safety pagination limit." }
         }
+        orders
     }
 
     /** Read-only refresh for one known order ID, including terminal order states. */
