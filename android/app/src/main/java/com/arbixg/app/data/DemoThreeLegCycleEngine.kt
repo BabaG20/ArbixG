@@ -71,6 +71,8 @@ class DemoThreeLegCycleEngine(
     suspend fun execute(request: DemoThreeLegCycleRequest): DemoThreeLegCycleResult {
         val balances = try {
             loadAvailableBalances(request.requiredFunds.keys)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (failure: Exception) {
             return DemoThreeLegCycleResult.Rejected(request.cycleId, safeReason(failure))
         }
@@ -292,6 +294,8 @@ class DemoThreeLegCycleEngine(
                 DemoOrderSubmissionCoordinator.Result.Acknowledged(
                     demoApi.queryByClientOrderId(existing.instrumentId, existing.clientOrderId)
                 )
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (failure: Exception) {
                 DemoOrderSubmissionCoordinator.Result.Ambiguous(existing.clientOrderId, safeReason(failure))
             }
