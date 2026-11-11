@@ -97,6 +97,7 @@ class DemoThreeLegCycleEngine(
         val completedOrders = ArrayList<ReconciledOrder>(3)
         var submittedAnyOrder = existingIntents.isNotEmpty()
         var availableInput = request.startAmount
+        var firstLegInputConsumed: BigDecimal? = null
         var activeLegIndex = 0
 
         try {
@@ -114,9 +115,11 @@ class DemoThreeLegCycleEngine(
                         throw CycleStop(index, "Stored prior leg is not fully filled.")
                     }
                     completedOrders += reconciled
-                    availableInput = CycleFillMath.movement(
+                    val movement = CycleFillMath.movement(
                         reconciled, leg.side, leg.fromCurrency, leg.toCurrency
-                    ).outputReceived
+                    )
+                    if (index == 0) firstLegInputConsumed = movement.inputConsumed
+                    availableInput = movement.outputReceived
                     return@forEachIndexed
                 }
                 if (riskManager.isKillSwitchEnabled() && priorIntent == null) {
@@ -206,11 +209,26 @@ class DemoThreeLegCycleEngine(
                     null
                 )
                 val movement = CycleFillMath.movement(reconciled, leg.side, leg.fromCurrency, leg.toCurrency)
+                if (index == 0) firstLegInputConsumed = movement.inputConsumed
                 availableInput = movement.outputReceived
             }
 
             val finalAmount = availableInput
-            val pnl = finalAmount.subtract(request.startAmount)
+            val initialAvailable = balances[request.startCurrency]?.available
+                ?: throw CycleStop(2, "Initial available starting-currency balance was not captured.")
+            val finalBalance = loadAvailableBalances(setOf(request.startCurrency))[request.startCurrency]
+                ?: throw CycleStop(2, "Final available starting-currency balance is missing.")
+            if (clock() - finalBalance.retrievedAtEpochMs !in 0L..60_000L) {
+                throw CycleStop(2, "Final starting-currency balance is stale.")
+            }
+            val expectedFinalBalance = initialAvailable
+                .subtract(firstLegInputConsumed ?: throw CycleStop(0, "First-leg input movement is missing."))
+                .add(finalAmount)
+            val balanceDifference = finalBalance.available.subtract(expectedFinalBalance).abs()
+            if (balanceDifference > BigDecimal("0.00000001")) {
+                throw CycleStop(2, "Final exchange balance does not reconcile with confirmed fills; reservation remains locked.")
+            }
+            val pnl = finalBalance.available.subtract(initialAvailable)
             database.tradeRecordDao().insert(
                 TradeRecord(
                     mode = "DEMO",
