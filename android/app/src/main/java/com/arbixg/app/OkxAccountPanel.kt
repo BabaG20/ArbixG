@@ -121,7 +121,7 @@ fun OkxAccountPanel(
                                     demoMode = useDemo
                                 ).also(onAccountSnapshot)
                                 val earnHoldings = try {
-                                    api.loadEarnHoldings(demoMode = true)
+                                    api.loadEarnHoldings(demoMode = useDemo)
                                 } catch (_: Exception) {
                                     null
                                 }
@@ -135,7 +135,7 @@ fun OkxAccountPanel(
                                         previous.status == com.arbixg.app.data.ReconciledOrderStatus.PARTIALLY_FILLED
                                 }.forEach { previous ->
                                     try {
-                                        val fresh = api.loadOrderSnapshot(previous.instrumentId, previous.orderId, demoMode = true)
+                                        val fresh = api.loadOrderSnapshot(previous.instrumentId, previous.orderId, demoMode = useDemo)
                                         val reconciled = OrderFillReconciler.reconcile(previous, fresh)
                                         journal.save(reconciled)
                                         recovered[reconciled.orderId] = reconciled
@@ -146,7 +146,7 @@ fun OkxAccountPanel(
                                 }
 
                                 try {
-                                    val exchangePendingOrders = api.loadPendingSpotOrders(demoMode = true)
+                                    val exchangePendingOrders = api.loadPendingSpotOrders(demoMode = useDemo)
                                     exchangePendingOrders.forEach { incoming ->
                                         val previous = journal.get(incoming.orderId)
                                         val reconciled = OrderFillReconciler.reconcile(previous, incoming)
