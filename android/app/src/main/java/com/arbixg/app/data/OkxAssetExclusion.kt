@@ -81,6 +81,29 @@ object OkxEarnResponseParser {
     fun parseOkusd(data: org.json.JSONArray): List<OkxEarnHolding> =
         parseCurrencyAmounts(data, "OKUSD Earn")
 
+    fun parseStableRewards(data: org.json.JSONArray): List<OkxEarnHolding> {
+        val holdings = ArrayList<OkxEarnHolding>()
+        for (i in 0 until data.length()) {
+            val details = data.optJSONObject(i)?.optJSONArray("details") ?: continue
+            holdings += parseCurrencyAmounts(details, "Stable Rewards")
+        }
+        return holdings
+    }
+
+    fun parseDualInvestment(data: org.json.JSONArray): List<OkxEarnHolding> {
+        val activeStates = setOf("initial", "live", "pending_settle", "pending_redeem")
+        val holdings = ArrayList<OkxEarnHolding>()
+        for (i in 0 until data.length()) {
+            val order = data.optJSONObject(i) ?: continue
+            if (order.optString("state") !in activeStates) continue
+            val currency = order.optString("notionalCcy").uppercase()
+            val amount = order.optString("notionalSz")
+            val holding = OkxEarnHolding(currency, amount, "Dual Investment")
+            if (currency.isNotBlank() && holding.hasPositiveAmount()) holdings += holding
+        }
+        return holdings
+    }
+
     fun parseOnChainActive(data: org.json.JSONArray): List<OkxEarnHolding> {
         val holdings = ArrayList<OkxEarnHolding>()
         for (i in 0 until data.length()) {
