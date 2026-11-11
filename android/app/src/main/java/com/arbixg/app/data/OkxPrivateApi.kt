@@ -171,12 +171,28 @@ class OkxPrivateApi(
             get("/api/v5/finance/okusd/account", demoMode).getJSONArray("data")
         )
         // Dual Investment order history is rate-limited to one request per second.
-        listOf("initial", "live", "pending_settle", "pending_redeem").forEachIndexed { index, state ->
-            if (index > 0) delay(1_000L)
-            holdings += OkxEarnResponseParser.parseDualInvestment(
-                get("/api/v5/finance/sfp/dcd/order-history?state=$state&limit=100", demoMode)
-                    .getJSONArray("data")
-            )
+        var firstDualRequest = true
+        listOf("initial", "live", "pending_settle", "pending_redeem").forEach { state ->
+            var endId: String? = null
+            var page = 0
+            while (true) {
+                if (!firstDualRequest) delay(1_000L)
+                firstDualRequest = false
+                val cursor = endId?.let { "&endId=$it" }.orEmpty()
+                val data = get(
+                    "/api/v5/finance/sfp/dcd/order-history?state=$state&limit=100$cursor",
+                    demoMode
+                ).getJSONArray("data")
+                holdings += OkxEarnResponseParser.parseDualInvestment(data)
+                page++
+                if (data.length() < 100) break
+                val nextEndId = data.optJSONObject(data.length() - 1)?.optString("ordId").orEmpty()
+                require(nextEndId.isNotBlank() && nextEndId != endId) {
+                    "Dual Investment pagination did not advance; Earn snapshot is incomplete."
+                }
+                endId = nextEndId
+                require(page < 1_000) { "Dual Investment history exceeded the safety pagination limit." }
+            }
         }
         holdings
     }
