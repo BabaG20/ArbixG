@@ -231,6 +231,7 @@ private fun ArbixGApp() {
                     onAccountSnapshot = { accountSnapshot = it },
                     onAssetExclusions = { assetExclusions = it }
                 )
+                TradeHistoryPanel()
                 RiskControlPanel()
                 Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(16.dp)) {
                     Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
