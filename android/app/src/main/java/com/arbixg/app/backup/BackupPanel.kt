@@ -33,9 +33,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 
-private val BackupGold = Color(0xFFE7B95B)
-private val BackupMuted = Color(0xFF9AA8BC)
-private val BackupPanel = Color(0xFF151F31)
+private val BackupGold = Color(0xFFD8B45A)
+private val BackupMuted = Color(0xFF91A39A)
+private val BackupPanel = Color(0xFF111A16)
 
 @Composable
 fun BackupPanel() {
