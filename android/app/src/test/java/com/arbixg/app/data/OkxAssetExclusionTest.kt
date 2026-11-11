@@ -60,6 +60,14 @@ class OkxAssetExclusionTest {
         )
     }
 
+    @Test fun stakingReceiptTokensAlsoBlockUnderlyingAssetCycles() {
+        val snapshot = OkxAssetExclusionSnapshot(emptySet(), setOf("BETH", "OKSOL"), emptySet(), 10L, true)
+        assertTrue("ETH" in snapshot.blockedBaseCurrencies)
+        assertTrue("SOL" in snapshot.blockedBaseCurrencies)
+        assertTrue("BETH" in snapshot.blockedBaseCurrencies)
+        assertTrue("OKSOL" in snapshot.blockedBaseCurrencies)
+    }
+
     @Test fun invalidEarnAmountsAreNotCountedAsHoldings() {
         assertTrue(OkxEarnHolding("BTC", "0", "Simple Earn").hasPositiveAmount().not())
         assertTrue(OkxEarnHolding("BTC", "bad", "Simple Earn").hasPositiveAmount().not())
