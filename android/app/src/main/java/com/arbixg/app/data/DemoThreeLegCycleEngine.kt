@@ -1,6 +1,8 @@
 package com.arbixg.app.data
 
 import java.math.BigDecimal
+import java.nio.charset.StandardCharsets
+import java.security.MessageDigest
 import kotlinx.coroutines.delay
 
 data class DemoCycleLegSpec(
@@ -244,9 +246,10 @@ class DemoThreeLegCycleEngine(
     }
 
     private fun clientOrderId(cycleId: String, legIndex: Int): String {
-        val prefix = cycleId.filter { it.isLetterOrDigit() }.ifBlank { "ARBIXG" }.take(23)
-        val suffix = (clock().toString() + legIndex).takeLast(8)
-        return (prefix + suffix).take(32)
+        // Stable across app restarts: a retried cycle/leg resolves to the same OKX client ID.
+        val bytes = MessageDigest.getInstance("SHA-256")
+            .digest((cycleId + ":" + legIndex).toByteArray(StandardCharsets.UTF_8))
+        return bytes.take(16).joinToString("") { byte -> "%02x".format(byte) }
     }
 
     private fun safeReason(failure: Exception): String =
