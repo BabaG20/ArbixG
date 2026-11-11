@@ -4,6 +4,7 @@ import java.math.BigDecimal
 import java.math.RoundingMode
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 
 data class DemoCycleLegSpec(
@@ -79,6 +80,12 @@ class DemoThreeLegCycleEngine(
         if (!existingReservation && existingIntents.size == 3 &&
             existingIntents.all { it.state == OrderIntentEntity.RECONCILED }) {
             return DemoThreeLegCycleResult.Rejected(request.cycleId, "This cycle is already complete; create a new cycle ID.")
+        }
+
+        val initialBalance = balances[request.startCurrency]
+            ?: return DemoThreeLegCycleResult.Rejected(request.cycleId, "Initial available starting-currency balance is missing.")
+        if (clock() - initialBalance.retrievedAtEpochMs !in 0L..60_000L) {
+            return DemoThreeLegCycleResult.Rejected(request.cycleId, "Initial available starting-currency balance is stale.")
         }
 
         val risk = riskManager.reserve(
@@ -214,8 +221,7 @@ class DemoThreeLegCycleEngine(
             }
 
             val finalAmount = availableInput
-            val initialAvailable = balances[request.startCurrency]?.available
-                ?: throw CycleStop(2, "Initial available starting-currency balance was not captured.")
+            val initialAvailable = initialBalance.available
             val finalBalance = loadAvailableBalances(setOf(request.startCurrency))[request.startCurrency]
                 ?: throw CycleStop(2, "Final available starting-currency balance is missing.")
             if (clock() - finalBalance.retrievedAtEpochMs !in 0L..60_000L) {
@@ -240,6 +246,9 @@ class DemoThreeLegCycleEngine(
             )
             riskManager.release(request.cycleId)
             return DemoThreeLegCycleResult.Completed(request.cycleId, finalAmount, pnl, completedOrders)
+        } catch (cancelled: CancellationException) {
+            // Leave durable intents and risk reservations intact for startup reconciliation.
+            throw cancelled
         } catch (stopped: CycleStop) {
             database.tradeRecordDao().insert(
                 TradeRecord(
