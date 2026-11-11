@@ -34,8 +34,8 @@ class OkxAssetExclusionTest {
     @Test fun excludesCyclesTouchingEarnHeldCurrencies() {
         val snapshot = OkxAssetExclusionSnapshot(emptySet(), setOf("ETH"), emptySet(), 10L, true)
         val result = OpportunityAssetFilter.apply(listOf(btcCycle, solCycle), tickers, snapshot)
-        assertEquals(0, result.included.size)
-        assertEquals(2, result.excluded.size)
+        assertEquals(listOf(solCycle), result.included)
+        assertEquals(listOf(btcCycle), result.excluded)
     }
 
     @Test fun excludesExactInstrumentWithAnOpenSpotOrder() {
@@ -66,3 +66,4 @@ class OkxAssetExclusionTest {
         assertTrue(OkxEarnHolding("BTC", "0.001", "Simple Earn").hasPositiveAmount())
     }
 }
+
