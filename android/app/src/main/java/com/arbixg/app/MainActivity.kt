@@ -107,7 +107,15 @@ private fun ArbixGApp() {
             runCatching { OpportunityAssetFilter.apply(market.candidates, market.tickers, exclusions) }.getOrNull()
         } else null
     }
-    val visibleCandidates = (filterResult?.included ?: snapshot?.candidates.orEmpty()).take(50)
+    val visibleCandidates = remember(snapshot, filterResult, depthValidation) {
+        val candidates = filterResult?.included ?: snapshot?.candidates.orEmpty()
+        val depthRank = depthValidation.mapIndexed { index, item ->
+            "${item.candidate.path.joinToString(">")}|${item.candidate.instruments.joinToString(",")}" to index
+        }.toMap()
+        candidates.sortedBy { candidate ->
+            depthRank["${candidate.path.joinToString(">")}|${candidate.instruments.joinToString(",")}"] ?: Int.MAX_VALUE
+        }.take(50)
+    }
 
     LaunchedEffect(repository, accountSnapshot?.retrievedAtEpochMs, assetExclusions?.retrievedAtEpochMs) {
         var retryDelayMs = 15_000L
