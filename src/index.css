@@ -1,0 +1,50 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap');
+
+:root{font-family:Manrope,system-ui,sans-serif;color:#f3f4f6;background:#090b10;font-synthesis:none;text-rendering:optimizeLegibility;-webkit-font-smoothing:antialiased;font-optical-sizing:auto;font-weight:400}
+*{box-sizing:border-box}
+body{margin:0;min-width:320px;min-height:100vh;background:radial-gradient(ellipse at 80% -20%,rgba(214,173,85,.10),transparent 38%),#090b10}
+button,a{font:inherit}
+button{cursor:pointer}
+.app-shell{width:min(1120px,100%);margin:0 auto;padding:24px 28px 30px}
+.topbar{height:58px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #222630}
+.brand{display:flex;align-items:center;gap:10px;color:#f7f7f8;text-decoration:none;font-weight:800;letter-spacing:.16em;font-size:15px}
+.brand-mark{display:grid;place-items:center;width:32px;height:32px;border:1.5px solid #d6ad55;border-radius:50%;color:#d6ad55;font-size:18px}
+.gold{color:#d6ad55}
+.connection-pill,.eyebrow,.panel-heading,.footer,.state-label{font-family:"DM Mono",monospace;letter-spacing:.08em}
+.connection-pill{display:flex;align-items:center;gap:8px;color:#9da3af;font-size:10px}
+.status-dot{width:7px;height:7px;border-radius:50%;background:#d49b43;box-shadow:0 0 10px #d49b4366}
+.welcome{display:flex;justify-content:space-between;align-items:center;padding:48px 0 32px}
+.eyebrow{font-size:10px;color:#d6ad55;margin:0 0 12px}
+h1{font-size:clamp(30px,5vw,48px);letter-spacing:-.055em;line-height:1.08;margin:0;font-weight:800}
+.subheading{color:#9ca3af;font-size:14px;margin:12px 0 0}
+.icon-button{width:42px;height:42px;border-radius:12px;border:1px solid #2a2e38;background:#11151d;color:#c7cad1;display:grid;place-items:center}
+.tabs{display:flex;gap:8px;border-bottom:1px solid #242833;margin-bottom:22px;overflow:auto}
+.tab{display:flex;align-items:center;gap:8px;padding:13px 15px;border:0;border-bottom:2px solid transparent;background:transparent;color:#9298a5;white-space:nowrap;font-size:13px}
+.tab.active{color:#e4c477;border-bottom-color:#d6ad55}
+.content-grid{display:grid;grid-template-columns:1.3fr .7fr;gap:16px}
+.panel{background:linear-gradient(145deg,#121720,#0e1219);border:1px solid #272d38;border-radius:17px;min-height:250px}
+.primary-panel{min-height:350px}
+.panel-heading{display:flex;justify-content:space-between;align-items:center;padding:18px 20px;color:#aab0bc;font-size:10px;border-bottom:1px solid #252b35}
+.panel-heading svg{color:#d6ad55}
+.empty-state{display:flex;flex-direction:column;align-items:center;text-align:center;padding:36px 28px}
+.empty-icon{display:grid;place-items:center;width:54px;height:54px;border:1px solid #4a4029;border-radius:16px;color:#d6ad55;background:#d6ad5510}
+.empty-state h2{font-size:18px;margin:18px 0 8px;letter-spacing:-.02em}
+.empty-state p{max-width:470px;color:#9299a7;font-size:13px;line-height:1.7;margin:0 0 20px}
+.primary-button{background:#d6ad55;color:#17130a;border:0;border-radius:10px;padding:11px 16px;font-weight:800;font-size:12px}
+.integrity-row,.setting-row{display:flex;align-items:center;gap:12px;padding:17px 18px;border-bottom:1px solid #252b35}
+.integrity-row:last-child,.setting-row:last-child{border-bottom:0}
+.integrity-row strong,.setting-row strong{display:block;font-size:12px;font-weight:700}
+.integrity-row small,.setting-row small{display:block;color:#858d9b;font-size:11px;margin-top:4px}
+.status-indicator{width:8px;height:8px;border-radius:50%;flex:none}
+.status-indicator.warning{background:#d49b43}
+.status-indicator.muted{background:#626b79}
+.scanner-panel{min-height:360px}
+.state-label{font-size:9px;color:#d4a34e;border:1px solid #554329;border-radius:6px;padding:6px 8px;white-space:nowrap}
+.security-notice{display:flex;gap:12px;margin:18px;padding:15px;border:1px solid #4a4029;border-radius:12px;background:#d6ad550c;color:#d6ad55}
+.security-notice p{margin:0;color:#b9bec8;font-size:12px;line-height:1.65}
+.security-notice svg{flex:none}
+.setting-row{justify-content:space-between;gap:14px}
+.state-label.safe{color:#7cc69b;border-color:#28543c}
+.footer{display:flex;justify-content:space-between;align-items:center;color:#626b79;font-size:9px;margin-top:28px}
+.footer span:last-child{display:flex;align-items:center;gap:6px}
+@media(max-width:720px){.app-shell{padding:14px 15px 24px}.welcome{padding:34px 0 25px}.content-grid{grid-template-columns:1fr}.connection-pill{font-size:8px}.subheading{font-size:12px}.primary-panel{min-height:320px}.panel{border-radius:14px}.footer{font-size:8px}}
