@@ -1,0 +1,96 @@
+name: ArbixG signed Android release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  signed-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+
+      - name: Require permanent signing secrets
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          test -n "$KEYSTORE_B64" || { echo "::error::Missing ANDROID_KEYSTORE_BASE64"; exit 1; }
+          test -n "$STORE_PASSWORD" || { echo "::error::Missing ANDROID_KEYSTORE_PASSWORD"; exit 1; }
+          test -n "$KEY_ALIAS" || { echo "::error::Missing ANDROID_KEY_ALIAS"; exit 1; }
+          test -n "$KEY_PASSWORD" || { echo "::error::Missing ANDROID_KEY_PASSWORD"; exit 1; }
+          mkdir -p "$RUNNER_TEMP/arbixg-signing"
+          echo "$KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/arbixg-signing/release.jks"
+          test -s "$RUNNER_TEMP/arbixg-signing/release.jks"
+
+      - name: Run unit tests
+        run: gradle :android:app:testDebugUnitTest
+
+      - name: Build permanently signed release APK
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/arbixg-signing/release.jks
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: gradle :android:app:assembleRelease
+
+      - name: Prepare stable APK and checksum
+        id: apk
+        run: |
+          cp android/app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/ArbixG.apk"
+          echo "sha256=$(sha256sum "$RUNNER_TEMP/ArbixG.apk" | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+          VERSION_NAME=$(grep -E 'versionName = ' android/app/build.gradle.kts | head -1 | sed -E 's/.*"([^"]+)".*/\1/')
+          VERSION_CODE=$(grep -E 'versionCode = ' android/app/build.gradle.kts | head -1 | awk '{print $3}')
+          echo "version_name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
+          echo "version_code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
+
+      - name: Publish GitHub Release with stable asset name
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ runner.temp }}/ArbixG.apk
+          name: ArbixG ${{ github.ref_name }}
+          generate_release_notes: true
+          make_latest: true
+
+      - name: Update public in-app update feed
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          APK_SHA256: ${{ steps.apk.outputs.sha256 }}
+          VERSION_NAME: ${{ steps.apk.outputs.version_name }}
+          VERSION_CODE: ${{ steps.apk.outputs.version_code }}
+        run: |
+          git clone --branch release/secure-signing-bootstrap "https://x-access-token:$GH_TOKEN@github.com/$GITHUB_REPOSITORY.git" "$RUNNER_TEMP/feed"
+          cd "$RUNNER_TEMP/feed"
+          mkdir -p updates
+          jq -n --arg packageName "com.arbixg.app" --arg versionName "$VERSION_NAME" --argjson versionCode "$VERSION_CODE" --arg apkUrl "https://github.com/BabaG20/ArbixG/releases/latest/download/ArbixG.apk" --arg sha256 "$APK_SHA256" --arg releaseNotes "ArbixG signed release" '{packageName:$packageName,versionName:$versionName,versionCode:$versionCode,minSupportedVersionCode:1,apkUrl:$apkUrl,sha256:$sha256,releaseNotes:$releaseNotes}' > updates/latest.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add updates/latest.json
+          git commit -m "Publish ArbixG update manifest $VERSION_NAME"
+          git push origin HEAD:release/secure-signing-bootstrap
+
+      - name: Upload signed APK artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ArbixG-signed-release-apk
+          path: ${{ runner.temp }}/ArbixG.apk
+          if-no-files-found: ignore
