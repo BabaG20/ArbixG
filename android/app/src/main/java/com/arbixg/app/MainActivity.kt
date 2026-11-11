@@ -133,8 +133,12 @@ private fun ArbixGApp() {
                         }.toMap()
                         parsed.takeIf { it.size == usableAccount.fees.size }
                     }
+                    val freshFilter = assetExclusions?.takeIf {
+                        it.complete && (System.currentTimeMillis() - it.retrievedAtEpochMs) in 0L..300_000L
+                    }?.let { OpportunityAssetFilter.apply(fresh.candidates, fresh.tickers, it) }
+                    val candidatesForValidation = freshFilter?.included ?: fresh.candidates
                     depthValidation = depthEngine.validateUsdtCandidates(
-                        candidates = if (filterResult != null) filterResult.included else fresh.candidates,
+                        candidates = candidatesForValidation,
                         startAmountUsdt = 10.0,
                         instrumentRules = fresh.instrumentRules,
                         feeRatesByInstrument = accountFeeRates,
@@ -144,9 +148,9 @@ private fun ArbixGApp() {
                     depthMessage = if (depthValidation.isEmpty()) {
                         "No USDT-starting candidate selected for depth validation."
                     } else if (feeAdjustedCount > 0) {
-                        "Depth checked ${depthValidation.size} filtered USDT cycle(s). ${feeAdjustedCount} have account-specific taker-fee estimates; net estimates include adverse slippage. Not an execution guarantee."
+                        "Depth checked ${depthValidation.size} USDT cycle(s); ${freshFilter?.excluded?.size ?: 0} excluded by holdings/Earn/open orders. ${feeAdjustedCount} have account-specific taker-fee estimates; net estimates include adverse slippage."
                     } else {
-                        "Depth checked ${depthValidation.size} filtered USDT cycle(s) using public L2 books and adverse slippage. No complete fresh account fee snapshot is available, so results remain gross-only."
+                        "Depth checked ${depthValidation.size} USDT cycle(s) using public L2 books and adverse slippage. ${freshFilter?.excluded?.size ?: 0} cycles excluded by account filters. No complete fresh fee snapshot; returns remain gross-only."
                     }
                 } catch (depthError: Exception) {
                     depthValidation = emptyList()
