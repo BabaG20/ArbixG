@@ -144,6 +144,32 @@ class OkxPrivateApi(
         }
 
 
+    /**
+     * Reads currently allocated Earn assets. This method is read-only and uses
+     * OKX's current Simple Earn, On-chain Earn, ETH/SOL staking and OKUSD
+     * balance endpoints. Any endpoint failure is propagated so callers cannot
+     * silently treat an incomplete Earn snapshot as empty.
+     */
+    suspend fun loadEarnHoldings(demoMode: Boolean): List<OkxEarnHolding> = withContext(Dispatchers.IO) {
+        val holdings = ArrayList<OkxEarnHolding>()
+        holdings += OkxEarnResponseParser.parseSimpleEarn(
+            get("/api/v5/finance/savings/balance", demoMode).getJSONArray("data")
+        )
+        holdings += OkxEarnResponseParser.parseOnChainActive(
+            get("/api/v5/finance/staking-defi/orders-active?protocolType=defi", demoMode).getJSONArray("data")
+        )
+        holdings += OkxEarnResponseParser.parseEthStaking(
+            get("/api/v5/finance/staking-defi/eth/balance", demoMode).getJSONArray("data")
+        )
+        holdings += OkxEarnResponseParser.parseSolStaking(
+            get("/api/v5/finance/staking-defi/sol/balance", demoMode).getJSONArray("data")
+        )
+        holdings += OkxEarnResponseParser.parseOkusd(
+            get("/api/v5/finance/okusd/account", demoMode).getJSONArray("data")
+        )
+        holdings
+    }
+
     /** Read-only list of current Spot orders (up to OKX's requested page size). */
     suspend fun loadPendingSpotOrders(demoMode: Boolean): List<OkxOrderSnapshot> = withContext(Dispatchers.IO) {
         val data = get("/api/v5/trade/orders-pending?instType=SPOT&limit=100", demoMode).getJSONArray("data")
