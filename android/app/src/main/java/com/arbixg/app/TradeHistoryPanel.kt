@@ -32,10 +32,10 @@ import kotlinx.coroutines.delay
 import java.text.DateFormat
 import java.util.Date
 
-private val HistoryPanel = Color(0xFF151F31)
-private val HistoryMuted = Color(0xFF9AA8BC)
-private val HistoryGold = Color(0xFFE7B95B)
-private val HistoryGreen = Color(0xFF79D6A3)
+private val HistoryPanel = Color(0xFF111A16)
+private val HistoryMuted = Color(0xFF91A39A)
+private val HistoryGold = Color(0xFFD8B45A)
+private val HistoryGreen = Color(0xFF20D68A)
 
 @Composable
 fun TradeHistoryPanel() {
