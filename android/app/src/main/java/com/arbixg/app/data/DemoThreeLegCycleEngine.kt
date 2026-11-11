@@ -227,9 +227,21 @@ class DemoThreeLegCycleEngine(
             if (clock() - finalBalance.retrievedAtEpochMs !in 0L..60_000L) {
                 throw CycleStop(2, "Final starting-currency balance is stale.")
             }
-            val expectedFinalBalance = initialAvailable
-                .subtract(firstLegInputConsumed ?: throw CycleStop(0, "First-leg input movement is missing."))
-                .add(finalAmount)
+            val firstLeg = completedOrders.firstOrNull()
+                ?: throw CycleStop(0, "First-leg fill is missing from the cycle journal.")
+            val thirdLeg = completedOrders.getOrNull(2)
+                ?: throw CycleStop(2, "Third-leg fill is missing from the cycle journal.")
+            // Balance snapshots may be taken during restart recovery. Apply only
+            // fills whose exchange update timestamps are newer than that snapshot.
+            var expectedFinalBalance = initialAvailable
+            if (firstLeg.lastExchangeUpdateEpochMs > initialBalance.retrievedAtEpochMs) {
+                expectedFinalBalance = expectedFinalBalance.subtract(
+                    firstLegInputConsumed ?: throw CycleStop(0, "First-leg input movement is missing.")
+                )
+            }
+            if (thirdLeg.lastExchangeUpdateEpochMs > initialBalance.retrievedAtEpochMs) {
+                expectedFinalBalance = expectedFinalBalance.add(finalAmount)
+            }
             val balanceDifference = finalBalance.available.subtract(expectedFinalBalance).abs()
             if (balanceDifference > BigDecimal("0.00000001")) {
                 throw CycleStop(2, "Final exchange balance does not reconcile with confirmed fills; reservation remains locked.")
