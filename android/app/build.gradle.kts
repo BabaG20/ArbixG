@@ -5,10 +5,14 @@ plugins {
     id("com.google.devtools.ksp")
 }
 
+val releaseStorePath = System.getenv("ANDROID_KEYSTORE_PATH")
+val releaseStorePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+val releaseKeyAlias = System.getenv("ANDROID_KEY_ALIAS")
+val releaseKeyPassword = System.getenv("ANDROID_KEY_PASSWORD")
+
 android {
     namespace = "com.arbixg.app"
     compileSdk = 35
-
     defaultConfig {
         applicationId = "com.arbixg.app"
         minSdk = 26
@@ -16,7 +20,20 @@ android {
         versionCode = 1
         versionName = "0.1.0"
     }
-
+    signingConfigs {
+        create("release") {
+            storeFile = releaseStorePath?.let { file(it) } ?: file("missing-release-key.jks")
+            storePassword = releaseStorePassword ?: ""
+            keyAlias = releaseKeyAlias ?: ""
+            keyPassword = releaseKeyPassword ?: ""
+        }
+    }
+    buildTypes {
+        getByName("release") {
+            isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("release")
+        }
+    }
     buildFeatures { compose = true }
     testOptions { unitTests.isIncludeAndroidResources = true }
     compileOptions {
