@@ -62,7 +62,7 @@ fun OkxAccountPanel(
             Modifier.fillMaxWidth().padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(7.dp)
         ) {
-            Text("OKX ACCOUNT · READ-ONLY DEMO CHECK", color = Color(0xFFE7B95B), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            Text("OKX ACCOUNT · READ-ONLY", color = Color(0xFFE7B95B), fontSize = 11.sp, fontWeight = FontWeight.Bold)
             OutlinedButton(onClick = { expanded = !expanded }) { Text(if (expanded) "Hide account settings" else "Configure OKX account") }
             if (expanded) {
             Text("Use an API key with Read permission only. Do not enable Trade or Withdraw. Credentials are encrypted with Android Keystore and are never sent to GitHub.", color = Color(0xFF9AA8BC), fontSize = 10.sp)
@@ -98,7 +98,7 @@ fun OkxAccountPanel(
                             apiKey = ""
                             secretKey = ""
                             passphrase = ""
-                            status = "Credentials encrypted on this device. Ready for demo read-only verification."
+                            status = "Credentials encrypted on this device. Choose Demo or Live read-only to verify account data."
                             account = null
                             onAccountSnapshot(null)
                             onAssetExclusions(null)
@@ -109,10 +109,10 @@ fun OkxAccountPanel(
                 ) { Text("Save securely") }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(enabled = !busy, onClick = { useDemo = true }) {
+                    OutlinedButton(enabled = !busy, onClick = { useDemo = true; account = null; onAccountSnapshot(null); onAssetExclusions(null) }) {
                         Text(if (useDemo) "✓ Demo" else "Demo")
                     }
-                    OutlinedButton(enabled = !busy, onClick = { useDemo = false }) {
+                    OutlinedButton(enabled = !busy, onClick = { useDemo = false; account = null; onAccountSnapshot(null); onAssetExclusions(null) }) {
                         Text(if (!useDemo) "✓ Live read-only" else "Live read-only")
                     }
                 }
