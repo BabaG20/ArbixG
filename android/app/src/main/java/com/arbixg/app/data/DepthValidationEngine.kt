@@ -33,11 +33,11 @@ data class DepthValidationItem(
 class DepthValidationEngine(
     private val loadOrderBook: suspend (String) -> SpotOrderBook,
     private val maxConcurrentRequests: Int = 4,
-    private val maxCandidates: Int = 10
+    private val maxCandidates: Int = Int.MAX_VALUE
 ) {
     init {
         require(maxConcurrentRequests in 1..8)
-        require(maxCandidates in 1..50)
+        require(maxCandidates > 0)
     }
 
     suspend fun validateUsdtCandidates(
