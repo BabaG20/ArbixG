@@ -26,7 +26,7 @@ import java.security.MessageDigest
  */
 object DirectUpdater {
     const val MANIFEST_URL =
-        "https://raw.githubusercontent.com/BabaG20/ArbixG/rebuild/okx-triangular-arbitrage-v1/updates/latest.json"
+        "https://raw.githubusercontent.com/BabaG20/ArbixG/release/secure-signing-bootstrap/updates/latest.json"
     private const val PACKAGE_NAME = "com.arbixg.app"
     private const val MAX_APK_BYTES = 100L * 1024L * 1024L
     private const val FILE_PROVIDER_SUFFIX = ".updates"
