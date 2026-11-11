@@ -62,9 +62,9 @@ fun TradeHistoryPanel() {
             modifier = Modifier.fillMaxWidth().padding(11.dp),
             verticalArrangement = Arrangement.spacedBy(5.dp)
         ) {
+            Text("TRADE DASHBOARD", color = HistoryGold, fontSize = 10.sp, fontWeight = FontWeight.Bold)
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("TRADE DASHBOARD", color = HistoryGold, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                Text("Active orders: " + activeOrders.size, color = if (activeOrders.isEmpty()) HistoryMuted else HistoryGold, fontSize = 10.sp)
+                Text("Active: " + activeOrders.size, color = if (activeOrders.isEmpty()) HistoryMuted else HistoryGold, fontSize = 10.sp)
                 Text("History: " + records.size, color = HistoryMuted, fontSize = 10.sp)
                 Text("Recovery: " + recoverableIntentCount, color = if (recoverableIntentCount == 0) HistoryMuted else HistoryGold, fontSize = 10.sp)
             }
