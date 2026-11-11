@@ -76,7 +76,8 @@ private fun ArbixGApp() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var updateRelease by remember { mutableStateOf<DirectUpdater.Release?>(null) }
-    var updateMessage by remember { mutableStateOf("Checking for app updates…") }
+    var updateMessage by remember { mutableStateOf("Bonyeza Check for updates kuangalia toleo jipya.") }
+    var updateBusy by remember { mutableStateOf(false) }
     var snapshot by remember { mutableStateOf<MarketSnapshot?>(null) }
     var accountSnapshot by remember { mutableStateOf<OkxAccountSnapshot?>(null) }
     var assetExclusions by remember { mutableStateOf<OkxAssetExclusionSnapshot?>(null) }
@@ -202,23 +203,32 @@ private fun ArbixGApp() {
                     Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text("APP UPDATES", color = Gold, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                         Text(updateMessage, color = Muted, fontSize = 11.sp)
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            androidx.compose.material3.OutlinedButton(onClick = {
+                        Button(
+                            enabled = !updateBusy,
+                            onClick = {
                                 scope.launch {
+                                    updateBusy = true
+                                    updateRelease = null
                                     updateMessage = "Inaangalia toleo jipya…"
-                                    when (val result = DirectUpdater.check(context)) {
-                                        DirectUpdater.CheckResult.Current -> { updateRelease = null; updateMessage = "App iko kwenye toleo la sasa." }
-                                        is DirectUpdater.CheckResult.Available -> { updateRelease = result.release; updateMessage = "Toleo ${result.release.versionName} linapatikana." }
-                                        is DirectUpdater.CheckResult.Failed -> { updateRelease = null; updateMessage = result.message }
+                                    try {
+                                        when (val result = DirectUpdater.check(context)) {
+                                            DirectUpdater.CheckResult.Current ->
+                                                updateMessage = "ArbixG iko kwenye toleo la sasa."
+                                            is DirectUpdater.CheckResult.Available -> {
+                                                updateRelease = result.release
+                                                updateMessage = "Toleo ${result.release.versionName} limepatikana. Linapakuliwa na kuthibitishwa…"
+                                                updateMessage = DirectUpdater.downloadAndOpenInstaller(context, result.release)
+                                            }
+                                            is DirectUpdater.CheckResult.Failed ->
+                                                updateMessage = "Imeshindikana kuangalia update: ${result.message}"
+                                        }
+                                    } finally {
+                                        updateBusy = false
                                     }
                                 }
-                            }) { Text("Check updates") }
-                            if (updateRelease != null) {
-                                Button(onClick = {
-                                    val release = updateRelease!!
-                                    scope.launch { updateMessage = DirectUpdater.downloadAndOpenInstaller(context, release) }
-                                }) { Text("Download & install") }
                             }
+                        ) {
+                            Text(if (updateBusy) "Please wait…" else "Check for updates")
                         }
                     }
                 }
