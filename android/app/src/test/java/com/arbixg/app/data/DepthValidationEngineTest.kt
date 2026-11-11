@@ -83,6 +83,22 @@ class DepthValidationEngineTest {
         assertNull(incomplete.netReturnPct)
     }
 
+    @Test fun validatesMoreThanTenCandidatesByDefault() = runBlocking {
+        val now = 1_800_000_000_000L
+        val source = books(now)
+        val engine = DepthValidationEngine(loadOrderBook = { source.getValue(it) })
+        val candidates = (1..12).map { candidate().copy(grossProfitPct = 1.0 / it) }
+
+        val results = engine.validateUsdtCandidates(
+            candidates,
+            now = now,
+            instrumentRules = rules()
+        )
+
+        assertEquals(12, results.size)
+        assertTrue(results.all { it.status == DepthValidationStatus.DEPTH_PASSED_WITH_RULES_GROSS_ONLY })
+    }
+
     @Test fun doesNotRequestNonUsdtStartingCycles() = runBlocking {
         var requests = 0
         val engine = DepthValidationEngine(loadOrderBook = {
