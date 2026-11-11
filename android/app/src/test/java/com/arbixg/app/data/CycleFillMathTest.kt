@@ -6,6 +6,10 @@ import org.junit.Test
 import java.math.BigDecimal
 
 class CycleFillMathTest {
+    private fun assertDecimalEquals(expected: String, actual: BigDecimal) {
+        assertEquals(0, BigDecimal(expected).compareTo(actual))
+    }
+
     private fun filled(
         instrument: String,
         size: String,
@@ -30,8 +34,8 @@ class CycleFillMathTest {
             filled("BTC-USDT", "0.01", "60000", "-0.00001", "BTC"),
             "buy", "USDT", "BTC"
         )
-        assertEquals(BigDecimal("600"), movement.inputConsumed)
-        assertEquals(BigDecimal("0.00999"), movement.outputReceived)
+        assertDecimalEquals("600", movement.inputConsumed)
+        assertDecimalEquals("0.00999", movement.outputReceived)
         assertEquals("BTC", movement.outputCurrency)
     }
 
@@ -40,8 +44,8 @@ class CycleFillMathTest {
             filled("BTC-USDT", "0.01", "60000", "-0.6", "USDT"),
             "sell", "BTC", "USDT"
         )
-        assertEquals(BigDecimal("0.01"), movement.inputConsumed)
-        assertEquals(BigDecimal("599.4"), movement.outputReceived)
+        assertDecimalEquals("0.01", movement.inputConsumed)
+        assertDecimalEquals("599.4", movement.outputReceived)
     }
 
     @Test fun buyAddsQuoteCurrencyFeeToInputConsumed() {
@@ -49,8 +53,8 @@ class CycleFillMathTest {
             filled("BTC-USDT", "0.01", "60000", "-0.5", "USDT"),
             "buy", "USDT", "BTC"
         )
-        assertEquals(BigDecimal("600.5"), movement.inputConsumed)
-        assertEquals(BigDecimal("0.01"), movement.outputReceived)
+        assertDecimalEquals("600.5", movement.inputConsumed)
+        assertDecimalEquals("0.01", movement.outputReceived)
     }
 
     @Test fun sellAddsBaseCurrencyFeeToInputConsumed() {
@@ -58,8 +62,8 @@ class CycleFillMathTest {
             filled("BTC-USDT", "0.01", "60000", "-0.0001", "BTC"),
             "sell", "BTC", "USDT"
         )
-        assertEquals(BigDecimal("0.0101"), movement.inputConsumed)
-        assertEquals(BigDecimal("600"), movement.outputReceived)
+        assertDecimalEquals("0.0101", movement.inputConsumed)
+        assertDecimalEquals("600", movement.outputReceived)
     }
 
     @Test fun rejectsThirdCurrencyFeeInsteadOfGuessingItsValue() {
