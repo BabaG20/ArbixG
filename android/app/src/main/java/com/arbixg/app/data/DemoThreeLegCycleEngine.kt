@@ -1,6 +1,7 @@
 package com.arbixg.app.data
 
 import java.math.BigDecimal
+import java.math.RoundingMode
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import kotlinx.coroutines.delay
@@ -55,6 +56,8 @@ class DemoThreeLegCycleEngine(
     private val demoApi: OkxDemoOrderApi,
     private val riskManager: PersistentCycleRiskManager,
     private val loadAvailableBalances: suspend (Set<String>) -> Map<String, RiskBalance>,
+    private val refreshExecutableLimitPrice: suspend (DemoCycleLegSpec) -> BigDecimal,
+    private val validateExecutableDepth: suspend (DemoCycleLegSpec, SizedCycleOrder) -> Boolean,
     private val clock: () -> Long = System::currentTimeMillis,
     private val pollIntervalMs: Long = 750L,
     private val maxPolls: Int = 20
@@ -129,17 +132,28 @@ class DemoThreeLegCycleEngine(
                     availableInput = minOf(availableInput, balance.available)
                 }
 
+                val freshPrice = refreshExecutableLimitPrice(leg)
+                require(freshPrice > BigDecimal.ZERO) { "Fresh executable limit price is invalid." }
+                val deviationBps = freshPrice.subtract(leg.limitPrice).abs()
+                    .multiply(BigDecimal("10000"))
+                    .divide(leg.limitPrice, 8, RoundingMode.CEILING)
+                if (deviationBps > request.estimatedSlippageBps) {
+                    throw CycleStop(index, "Price moved beyond the approved slippage buffer.")
+                }
                 val sized = CycleOrderSizer.size(
                     instrumentId = leg.instrumentId,
                     side = leg.side,
                     inputCurrency = leg.fromCurrency,
                     availableInput = availableInput,
-                    limitPrice = leg.limitPrice,
+                    limitPrice = freshPrice,
                     lotSize = leg.lotSize,
                     minimumSize = leg.minimumSize,
                     minimumNotional = leg.minimumNotional,
                     tickSize = leg.tickSize
                 )
+                if (!validateExecutableDepth(leg, sized)) {
+                    throw CycleStop(index, "Fresh order-book depth cannot support the full leg size.")
+                }
                 val now = clock()
                 val intent = OrderIntentEntity(
                     clientOrderId = clientId,
