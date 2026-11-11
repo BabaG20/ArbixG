@@ -54,6 +54,7 @@ fun OkxAccountPanel(
     var account by remember { mutableStateOf<OkxAccountSnapshot?>(null) }
     var pendingOrders by remember { mutableStateOf<List<ReconciledOrder>>(emptyList()) }
     var busy by remember { mutableStateOf(false) }
+    var useDemo by remember { mutableStateOf(true) }
     var expanded by remember { mutableStateOf(false) }
 
     Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF151F31)), shape = RoundedCornerShape(14.dp)) {
@@ -111,13 +112,13 @@ fun OkxAccountPanel(
                     onClick = {
                         scope.launch {
                             busy = true
-                            status = "Checking OKX demo account, balances and fee tier…"
+                            status = "Checking OKX ${if (useDemo) "Demo" else "Live read-only"} account, balances, Earn and fee tier…"
                             try {
                                 val credentials = store.load() ?: error("Save all three credentials first.")
                                 val api = OkxPrivateApi(credentials)
                                 account = api.loadAccountSnapshot(
                                     instrumentIds = instrumentIds,
-                                    demoMode = true
+                                    demoMode = useDemo
                                 ).also(onAccountSnapshot)
                                 val earnHoldings = try {
                                     api.loadEarnHoldings(demoMode = true)
@@ -210,7 +211,7 @@ fun OkxAccountPanel(
             ) { Text("Delete saved credentials") }
             Text(status, color = Color(0xFF9AA8BC), fontSize = 10.sp)
             account?.let { data ->
-                Text("DEMO ACCOUNT VERIFIED · UID ${data.uid ?: "not supplied"} · account level ${data.accountLevel ?: "not supplied"}", color = Color(0xFF79D6A3), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                Text("${if (data.demoMode) "DEMO ACCOUNT VERIFIED" else "LIVE ACCOUNT · READ-ONLY"} · UID ${data.uid ?: "not supplied"} · account level ${data.accountLevel ?: "not supplied"}", color = Color(0xFF79D6A3), fontSize = 10.sp, fontWeight = FontWeight.Bold)
                 Text("Fee mode: ${when (data.feeType) { "0" -> "fees charged in received currency"; "1" -> "fees charged in Spot quote currency"; else -> "unknown — fee-adjusted simulation disabled" }}", color = Color(0xFFE7B95B), fontSize = 10.sp)
                 Text("Balances", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 if (data.balances.isEmpty()) Text("No currency balances returned.", color = Color(0xFF9AA8BC), fontSize = 10.sp)
@@ -222,7 +223,7 @@ fun OkxAccountPanel(
                 data.fees.forEach { fee ->
                     Text("${fee.instrumentId}: group ${fee.groupId} · maker ${fee.makerRate} · taker ${fee.takerRate} · level ${fee.level ?: "not supplied"}", color = Color(0xFF9AA8BC), fontSize = 10.sp)
                 }
-                Text("Retrieved ${data.retrievedAtEpochMs}. Demo environment only. Balance and fees must be refreshed before each future simulation.", color = Color(0xFFE7B95B), fontSize = 9.sp)
+                Text("Retrieved ${data.retrievedAtEpochMs}. ${if (data.demoMode) "Demo" else "Live read-only"} data only. Balance and fees must be refreshed before each future simulation.", color = Color(0xFFE7B95B), fontSize = 9.sp)
                 Text("Pending Spot orders · read-only", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 if (pendingOrders.isEmpty()) {
                     Text("No pending Spot orders were returned.", color = Color(0xFF9AA8BC), fontSize = 10.sp)
