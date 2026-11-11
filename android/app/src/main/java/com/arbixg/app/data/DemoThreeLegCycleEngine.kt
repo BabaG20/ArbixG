@@ -141,7 +141,17 @@ class DemoThreeLegCycleEngine(
                     if (clock() - balance.retrievedAtEpochMs !in 0L..60_000L) {
                         throw CycleStop(index, "Available " + leg.fromCurrency + " balance is stale.")
                     }
-                    availableInput = minOf(availableInput, balance.available)
+                    val reservedElsewhere = riskManager.activeReservations()
+                        .asSequence()
+                        .filter { it.cycleId != request.cycleId }
+                        .fold(BigDecimal.ZERO) { total, reservation ->
+                            total.add(reservation.requirements[leg.fromCurrency] ?: BigDecimal.ZERO)
+                        }
+                    val spendable = balance.available.subtract(reservedElsewhere)
+                    if (spendable <= BigDecimal.ZERO) {
+                        throw CycleStop(index, "No unreserved available " + leg.fromCurrency + " remains.")
+                    }
+                    availableInput = minOf(availableInput, spendable)
                 }
 
                 val freshPrice = refreshExecutableLimitPrice(leg)
