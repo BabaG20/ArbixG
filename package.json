@@ -1,0 +1,12 @@
+{
+  "name": "arbixg",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Real-time cryptocurrency triangular arbitrage platform",
+  "scripts": {
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
