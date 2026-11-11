@@ -164,9 +164,20 @@ class OkxPrivateApi(
         holdings += OkxEarnResponseParser.parseSolStaking(
             get("/api/v5/finance/staking-defi/sol/balance", demoMode).getJSONArray("data")
         )
+        holdings += OkxEarnResponseParser.parseStableRewards(
+            get("/api/v5/finance/stable-rewards/balance", demoMode).getJSONArray("data")
+        )
         holdings += OkxEarnResponseParser.parseOkusd(
             get("/api/v5/finance/okusd/account", demoMode).getJSONArray("data")
         )
+        // Dual Investment order history is rate-limited to one request per second.
+        listOf("initial", "live", "pending_settle", "pending_redeem").forEachIndexed { index, state ->
+            if (index > 0) delay(1_000L)
+            holdings += OkxEarnResponseParser.parseDualInvestment(
+                get("/api/v5/finance/sfp/dcd/order-history?state=$state&limit=100", demoMode)
+                    .getJSONArray("data")
+            )
+        }
         holdings
     }
 
