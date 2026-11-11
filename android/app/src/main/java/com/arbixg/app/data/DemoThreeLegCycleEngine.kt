@@ -70,6 +70,14 @@ class DemoThreeLegCycleEngine(
         } catch (failure: Exception) {
             return DemoThreeLegCycleResult.Rejected(request.cycleId, safeReason(failure))
         }
+        val journal = database.orderIntentDao()
+        val existingIntents = journal.getForCycle(request.cycleId)
+        val existingReservation = riskManager.activeReservations().any { it.cycleId == request.cycleId }
+        if (!existingReservation && existingIntents.size == 3 &&
+            existingIntents.all { it.state == OrderIntentEntity.RECONCILED }) {
+            return DemoThreeLegCycleResult.Rejected(request.cycleId, "This cycle is already complete; create a new cycle ID.")
+        }
+
         val risk = riskManager.reserve(
             cycleId = request.cycleId,
             startCurrency = request.startCurrency,
@@ -79,18 +87,37 @@ class DemoThreeLegCycleEngine(
             marketSnapshotEpochMs = request.marketSnapshotEpochMs,
             estimatedSlippageBps = request.estimatedSlippageBps
         )
-        if (!risk.approved) return DemoThreeLegCycleResult.Rejected(request.cycleId, risk.reason)
+        val mayResume = !risk.approved && existingReservation && existingIntents.isNotEmpty() &&
+            (risk.reason == "Cycle already has an active reservation." || risk.reason == "Kill switch is enabled.")
+        if (!risk.approved && !mayResume) return DemoThreeLegCycleResult.Rejected(request.cycleId, risk.reason)
 
         val completedOrders = ArrayList<ReconciledOrder>(3)
-        var submittedAnyOrder = false
+        var submittedAnyOrder = existingIntents.isNotEmpty()
         var availableInput = request.startAmount
         var activeLegIndex = 0
 
         try {
             request.legs.forEachIndexed { index, leg ->
                 activeLegIndex = index
-                if (riskManager.isKillSwitchEnabled()) {
-                    throw CycleStop(index, "Kill switch is enabled; no further legs will be submitted.")
+                val clientId = clientOrderId(request.cycleId, index)
+                val priorIntent = journal.get(clientId)
+                if (priorIntent?.state == OrderIntentEntity.RECONCILED) {
+                    val orderId = priorIntent.exchangeOrderId
+                        ?: throw CycleStop(index, "Reconciled order is missing its exchange order ID.")
+                    val storedOrder = database.trackedOrderDao().getByOrderId(orderId)
+                        ?: throw CycleStop(index, "Reconciled order fill is missing from the local journal.")
+                    val reconciled = storedOrder.toReconciledOrder()
+                    if (reconciled.status != ReconciledOrderStatus.FILLED) {
+                        throw CycleStop(index, "Stored prior leg is not fully filled.")
+                    }
+                    completedOrders += reconciled
+                    availableInput = CycleFillMath.movement(
+                        reconciled, leg.side, leg.fromCurrency, leg.toCurrency
+                    ).outputReceived
+                    return@forEachIndexed
+                }
+                if (riskManager.isKillSwitchEnabled() && priorIntent == null) {
+                    throw CycleStop(index, "Kill switch is enabled; no new leg will be submitted.")
                 }
                 if (index > 0) {
                     val currentBalances = loadAvailableBalances(setOf(leg.fromCurrency))
@@ -113,7 +140,6 @@ class DemoThreeLegCycleEngine(
                     minimumNotional = leg.minimumNotional,
                     tickSize = leg.tickSize
                 )
-                val clientId = clientOrderId(request.cycleId, index)
                 val now = clock()
                 val intent = OrderIntentEntity(
                     clientOrderId = clientId,
