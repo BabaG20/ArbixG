@@ -6,7 +6,7 @@ object TriangularScanner {
      * Discovery only: candidates require fresh order-book depth, account fee tier,
      * instrument rules, balances and slippage validation before execution.
      */
-    fun scanAll(tickers: List<SpotTicker>, limit: Int = 100): List<TriangularCandidate> {
+    fun scanAll(tickers: List<SpotTicker>, limit: Int = Int.MAX_VALUE): List<TriangularCandidate> {
         val adjacency = HashMap<String, MutableList<ConversionEdge>>()
         for (ticker in tickers) {
             val bid = ticker.bid.toDoubleOrNull() ?: continue
