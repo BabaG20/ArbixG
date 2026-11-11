@@ -9,12 +9,19 @@ class OkxAssetExclusionTest {
         SpotTicker("ETH-BTC", "ETH", "BTC", "0.05", "0.049", "0.051", 1L),
         SpotTicker("ETH-USDT", "ETH", "USDT", "2500", "2499", "2501", 1L),
         SpotTicker("SOL-USDT", "SOL", "USDT", "100", "99", "101", 1L),
-        SpotTicker("SOL-BTC", "SOL", "BTC", "0.002", "0.0019", "0.0021", 1L)
+        SpotTicker("SOL-BTC", "SOL", "BTC", "0.002", "0.0019", "0.0021", 1L),
+        SpotTicker("SOL-ETH", "SOL", "ETH", "0.04", "0.039", "0.041", 1L)
     )
     private val btcCycle = TriangularCandidate(
         listOf("USDT", "BTC", "ETH", "USDT"),
         listOf("BTC-USDT", "ETH-BTC", "ETH-USDT"),
         1.0,
+        "FEE_AND_DEPTH_NOT_VALIDATED"
+    )
+    private val solEthCycle = TriangularCandidate(
+        listOf("USDT", "SOL", "ETH", "USDT"),
+        listOf("SOL-USDT", "SOL-ETH", "ETH-USDT"),
+        0.4,
         "FEE_AND_DEPTH_NOT_VALIDATED"
     )
     private val solCycle = TriangularCandidate(
@@ -26,8 +33,8 @@ class OkxAssetExclusionTest {
 
     @Test fun excludesCyclesTouchingSpotHeldBaseCurrencies() {
         val snapshot = OkxAssetExclusionSnapshot(setOf("BTC"), emptySet(), emptySet(), 10L, true)
-        val result = OpportunityAssetFilter.apply(listOf(btcCycle, solCycle), tickers, snapshot)
-        assertEquals(listOf(solCycle), result.included)
+        val result = OpportunityAssetFilter.apply(listOf(btcCycle, solEthCycle), tickers, snapshot)
+        assertEquals(listOf(solEthCycle), result.included)
         assertEquals(listOf(btcCycle), result.excluded)
     }
 
