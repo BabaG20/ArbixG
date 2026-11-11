@@ -286,6 +286,15 @@ class DemoThreeLegCycleEngine(
             if (!submittedAnyOrder) riskManager.release(request.cycleId)
             return DemoThreeLegCycleResult.Stopped(request.cycleId, stopped.legIndex, stopped.message.orEmpty(), completedOrders)
         } catch (failure: Exception) {
+            database.tradeRecordDao().insert(
+                TradeRecord(
+                    mode = "DEMO",
+                    route = request.legs.joinToString(" → ") { it.instrumentId },
+                    status = "STOPPED_AT_LEG_" + (activeLegIndex + 1),
+                    createdAtEpochMs = clock(),
+                    realizedPnl = null
+                )
+            )
             if (!submittedAnyOrder) riskManager.release(request.cycleId)
             return DemoThreeLegCycleResult.Stopped(request.cycleId, activeLegIndex, safeReason(failure), completedOrders)
         }
