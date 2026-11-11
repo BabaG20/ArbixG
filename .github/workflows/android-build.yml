@@ -2,9 +2,9 @@ name: ArbixG Android build
 
 on:
   pull_request:
-    branches: [main, "rebuild/**"]
+    branches: [main, "rebuild/**", "release/**"]
   push:
-    branches: ["rebuild/**", "ui/**"]
+    branches: ["rebuild/**", "ui/**", "release/**"]
   workflow_dispatch:
 
 jobs:
