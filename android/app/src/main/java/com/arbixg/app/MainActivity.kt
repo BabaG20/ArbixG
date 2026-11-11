@@ -38,6 +38,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
 import com.arbixg.app.data.MarketSnapshot
 import com.arbixg.app.data.OkxAccountSnapshot
+import com.arbixg.app.data.OkxAssetExclusionSnapshot
+import com.arbixg.app.data.OpportunityAssetFilter
 import com.arbixg.app.data.OkxMarketRepository
 import com.arbixg.app.data.OkxOrderBookRepository
 import com.arbixg.app.data.DepthValidationEngine
@@ -77,6 +79,7 @@ private fun ArbixGApp() {
     var updateMessage by remember { mutableStateOf("Checking for app updates…") }
     var snapshot by remember { mutableStateOf<MarketSnapshot?>(null) }
     var accountSnapshot by remember { mutableStateOf<OkxAccountSnapshot?>(null) }
+    var assetExclusions by remember { mutableStateOf<OkxAssetExclusionSnapshot?>(null) }
     var connection by remember { mutableStateOf("CONNECTING") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var lastSuccessAt by remember { mutableStateOf<Long?>(null) }
@@ -94,7 +97,19 @@ private fun ArbixGApp() {
         }
     }
 
-    LaunchedEffect(repository, accountSnapshot?.retrievedAtEpochMs) {
+    val exclusionSnapshot = assetExclusions?.takeIf {
+        it.complete && (System.currentTimeMillis() - it.retrievedAtEpochMs) in 0L..300_000L
+    }
+    val filterResult = remember(snapshot, exclusionSnapshot) {
+        val market = snapshot
+        val exclusions = exclusionSnapshot
+        if (market != null && exclusions != null) {
+            runCatching { OpportunityAssetFilter.apply(market.candidates, market.tickers, exclusions) }.getOrNull()
+        } else null
+    }
+    val visibleCandidates = (filterResult?.included ?: snapshot?.candidates.orEmpty()).take(50)
+
+    LaunchedEffect(repository, accountSnapshot?.retrievedAtEpochMs, assetExclusions?.retrievedAtEpochMs) {
         var retryDelayMs = 15_000L
         while (true) {
             var waitMs = 15_000L
@@ -104,10 +119,10 @@ private fun ArbixGApp() {
                 connection = "LIVE SNAPSHOT"
                 errorMessage = null
                 lastSuccessAt = System.currentTimeMillis()
-                depthMessage = "Checking fresh order-book depth for the top USDT cycles…"
+                depthMessage = "Checking fresh order-book depth for every eligible USDT cycle…"
                 try {
                     val usableAccount = accountSnapshot?.takeIf {
-                        it.demoMode && it.feeType in setOf("0", "1") &&
+                        it.feeType in setOf("0", "1") &&
                             (System.currentTimeMillis() - it.retrievedAtEpochMs) in 0L..300_000L
                     }
                     val accountFeeRates = if (usableAccount == null) null else {
@@ -119,7 +134,7 @@ private fun ArbixGApp() {
                         parsed.takeIf { it.size == usableAccount.fees.size }
                     }
                     depthValidation = depthEngine.validateUsdtCandidates(
-                        candidates = fresh.candidates,
+                        candidates = if (filterResult != null) filterResult.included else fresh.candidates,
                         startAmountUsdt = 10.0,
                         instrumentRules = fresh.instrumentRules,
                         feeRatesByInstrument = accountFeeRates,
@@ -129,9 +144,9 @@ private fun ArbixGApp() {
                     depthMessage = if (depthValidation.isEmpty()) {
                         "No USDT-starting candidate selected for depth validation."
                     } else if (feeAdjustedCount > 0) {
-                        "Depth checked ${depthValidation.size} USDT cycle(s). ${feeAdjustedCount} have per-instrument Demo taker-fee estimates using the account's fee currency mode; remaining cycles are gross-only. Not executable profit."
+                        "Depth checked ${depthValidation.size} filtered USDT cycle(s). ${feeAdjustedCount} have account-specific taker-fee estimates; net estimates include adverse slippage. Not an execution guarantee."
                     } else {
-                        "Depth checked ${depthValidation.size} USDT cycle(s) using public L2 books and live lot/minimum/tick rules. No fresh complete Demo fee snapshot is available, so results remain gross-only."
+                        "Depth checked ${depthValidation.size} filtered USDT cycle(s) using public L2 books and adverse slippage. No complete fresh account fee snapshot is available, so results remain gross-only."
                     }
                 } catch (depthError: Exception) {
                     depthValidation = emptyList()
@@ -195,8 +210,10 @@ private fun ArbixGApp() {
                 OkxAccountPanel(
                     instrumentIds = snapshot?.candidates.orEmpty()
                         .filter { it.path.firstOrNull() == "USDT" && it.path.lastOrNull() == "USDT" }
-                        .take(10).flatMap { it.instruments }.distinct(),
-                    onAccountSnapshot = { accountSnapshot = it }
+                        .flatMap { it.instruments }.distinct()
+                        .ifEmpty { snapshot?.instrumentRules?.keys?.take(1).orEmpty() },
+                    onAccountSnapshot = { accountSnapshot = it },
+                    onAssetExclusions = { assetExclusions = it }
                 )
                 RiskControlPanel()
                 Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(16.dp)) {
@@ -208,8 +225,8 @@ private fun ArbixGApp() {
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(22.dp)) {
                             Metric("LIVE PAIRS", snapshot?.activeSpotMarkets?.toString() ?: "—")
-                            Metric("CANDIDATES", snapshot?.candidates?.size?.toString() ?: "—")
-                            Metric("SCAN", "ALL")
+                            Metric("ALL CYCLES", snapshot?.candidates?.size?.toString() ?: "—")
+                            Metric("AFTER FILTER", filterResult?.included?.size?.toString() ?: "—")
                         }
                         Text(errorMessage ?: "Full live SPOT catalogue + ticker snapshot · refresh every 15 seconds", color = Muted, fontSize = 11.sp)
                         if (connection.startsWith("STALE")) {
@@ -225,11 +242,11 @@ private fun ArbixGApp() {
                 Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(14.dp)) {
                     Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                         Text(depthMessage, color = Muted, fontSize = 11.sp)
-                        Text("Public order books only · max 10 USDT cycles · max 4 concurrent requests · no orders sent", color = Muted, fontSize = 9.sp)
+                        Text("All filtered USDT cycles · max 4 concurrent order-book requests · 10 bps adverse slippage buffer · no orders sent", color = Muted, fontSize = 9.sp)
                     }
                 }
                 Text("TOP TRIANGULAR CANDIDATES", color = Muted, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                val candidates = snapshot?.candidates.orEmpty()
+                val candidates = visibleCandidates
                 if (snapshot == null) {
                     Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(14.dp)) {
                         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -261,9 +278,9 @@ private fun ArbixGApp() {
                         StatusLine("Market discovery", "All live Spot instruments")
                         StatusLine("Ticker freshness", "Rejects data older than 60 seconds")
                         StatusLine("Instrument rules", "Lot / min size / tick size retained")
-                        StatusLine("Candidate status", "Gross only · unverified")
-                        StatusLine("Order-book depth", if (depthValidation.isNotEmpty()) "Checked for selected USDT cycles" else "Not yet checked")
-                        StatusLine("Fee model", if (depthValidation.any { it.feeModel != null }) "Demo taker fee estimate · not executable" else "No current complete account fee snapshot")
+                        StatusLine("Candidate status", if (filterResult != null) "Spot/Earn/open-order filtered" else "Asset filter not yet verified")
+                        StatusLine("Order-book depth", if (depthValidation.isNotEmpty()) "Checked all filtered USDT cycles" else "Not yet checked")
+                        StatusLine("Fee model", if (depthValidation.any { it.feeModel != null }) "Account taker fees + slippage buffer" else "No current complete account fee snapshot")
                         StatusLine("Demo / live orders", "Not connected · locked")
                         StatusLine("Automatic trading", "Disabled")
                     }
@@ -295,13 +312,13 @@ private fun CandidateCard(candidate: TriangularCandidate, depth: DepthValidation
             when (depth?.status) {
                 DepthValidationStatus.DEPTH_PASSED_GROSS_ONLY, DepthValidationStatus.DEPTH_PASSED_WITH_RULES_GROSS_ONLY -> {
                     Text("DEPTH PASSED · GROSS ONLY", color = Green, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                    Text("10 USDT → ${String.format("%.8f", depth.finalAmount ?: 0.0)} USDT · gross ${String.format("%.4f", depth.grossReturnPct ?: 0.0)}%", color = Color.White, fontSize = 10.sp)
-                    Text(depth.message + " Not executable profit.", color = Gold, fontSize = 9.sp)
+                    Text("10 USDT → ${String.format("%.8f", depth.finalAmount ?: 0.0)} USDT · gross after slippage ${String.format("%.4f", depth.grossReturnPct ?: 0.0)}%", color = Color.White, fontSize = 10.sp)
+                    Text(depth.message + " Not a verified execution result.", color = Gold, fontSize = 9.sp)
                     depth.dustSummary?.let { Text("Residual dust: $it", color = Muted, fontSize = 9.sp) }
                 }
                 DepthValidationStatus.DEPTH_PASSED_WITH_FEE, DepthValidationStatus.DEPTH_PASSED_WITH_RULES_AND_FEE -> {
                     Text("DEPTH PASSED · FEE-ADJUSTED ESTIMATE", color = Green, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                    Text("Estimated final ${String.format("%.8f", depth.finalAmount ?: 0.0)} USDT · estimated return ${String.format("%.4f", depth.netReturnPct ?: 0.0)}%", color = Color.White, fontSize = 10.sp)
+                    Text("Estimated final ${String.format("%.8f", depth.finalAmount ?: 0.0)} USDT · net after fees + slippage ${String.format("%.4f", depth.netReturnPct ?: 0.0)}%", color = Color.White, fontSize = 10.sp)
                     Text(depth.message + " Fee model: ${depth.feeModel ?: "supplied estimate"}. This is not a verified execution result; balance reservation, minNotional and order fills are not modeled.", color = Gold, fontSize = 9.sp)
                     depth.dustSummary?.let { Text("Residual dust: $it", color = Muted, fontSize = 9.sp) }
                 }
@@ -309,7 +326,7 @@ private fun CandidateCard(candidate: TriangularCandidate, depth: DepthValidation
                     Text("DEPTH REJECTED", color = Gold, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                     Text(depth.message, color = Muted, fontSize = 9.sp)
                 }
-                null -> Text("Not depth-checked: outside the selected top USDT cycles.", color = Muted, fontSize = 9.sp)
+                null -> Text("Not depth-checked in the current result set.", color = Muted, fontSize = 9.sp)
             }
         }
     }
