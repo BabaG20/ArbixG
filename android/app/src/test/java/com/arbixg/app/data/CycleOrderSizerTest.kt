@@ -11,14 +11,18 @@ class CycleOrderSizerTest {
     private val minNotional = BigDecimal("5")
     private val tick = BigDecimal("0.01")
 
+    private fun assertDecimalEquals(expected: String, actual: BigDecimal) {
+        assertEquals(0, BigDecimal(expected).compareTo(actual))
+    }
+
     @Test fun sizesBuyFromActualQuoteProceedsAndLeavesDust() {
         val sized = CycleOrderSizer.size(
             "ETH-USDT", "buy", "USDT", BigDecimal("101.23"),
             BigDecimal("2000.00"), lot, minSize, minNotional, tick
         )
-        assertEquals(BigDecimal("0.05"), sized.orderSizeBase)
-        assertEquals(BigDecimal("100"), sized.inputConsumed)
-        assertEquals(BigDecimal("1.23"), sized.unspentInput)
+        assertDecimalEquals("0.05", sized.orderSizeBase)
+        assertDecimalEquals("100", sized.inputConsumed)
+        assertDecimalEquals("1.23", sized.unspentInput)
         assertEquals("ETH", sized.outputCurrency)
     }
 
@@ -27,10 +31,10 @@ class CycleOrderSizerTest {
             "ETH-USDT", "sell", "ETH", BigDecimal("0.0537"),
             BigDecimal("2000.00"), lot, minSize, minNotional, tick
         )
-        assertEquals(BigDecimal("0.053"), sized.orderSizeBase)
-        assertEquals(BigDecimal("0.053"), sized.inputConsumed)
-        assertEquals(BigDecimal("0.0007"), sized.unspentInput)
-        assertEquals(BigDecimal("106"), sized.quoteNotional)
+        assertDecimalEquals("0.053", sized.orderSizeBase)
+        assertDecimalEquals("0.053", sized.inputConsumed)
+        assertDecimalEquals("0.0007", sized.unspentInput)
+        assertDecimalEquals("106", sized.quoteNotional)
     }
 
     @Test fun refusesToGuessMissingMinimumNotional() {
