@@ -107,6 +107,19 @@ fun OkxAccountPanel(
                         }
                     }
                 ) { Text("Save securely") }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(enabled = !busy, onClick = { useDemo = true }) {
+                        Text(if (useDemo) "✓ Demo" else "Demo")
+                    }
+                    OutlinedButton(enabled = !busy, onClick = { useDemo = false }) {
+                        Text(if (!useDemo) "✓ Live read-only" else "Live read-only")
+                    }
+                }
+                Text(
+                    if (useDemo) "Demo environment: simulated account data only."
+                    else "Live read-only: retrieves actual balances, fees, Earn holdings and open orders. Use a Read-only API key.",
+                    color = Color(0xFFE7B95B), fontSize = 10.sp
+                )
                 OutlinedButton(
                     enabled = !busy && store.isConfigured() && instrumentIds.isNotEmpty(),
                     onClick = {
@@ -192,7 +205,7 @@ fun OkxAccountPanel(
                             }
                         }
                     }
-                ) { Text(if (busy) "Checking…" else "Test demo account") }
+                ) { Text(if (busy) "Checking…" else if (useDemo) "Test Demo account" else "Load Live read-only account") }
             }
             OutlinedButton(
                 enabled = !busy && store.isConfigured(),
