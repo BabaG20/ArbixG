@@ -40,10 +40,12 @@ fun TradeHistoryPanel() {
     val records by remember(database) { database.tradeRecordDao().observeRecent() }
         .collectAsState(initial = emptyList())
     var trackedOrders by remember { mutableStateOf<List<TrackedOrderEntity>>(emptyList()) }
+    var recoverableIntentCount by remember { mutableStateOf(0) }
 
     LaunchedEffect(database) {
         while (true) {
             trackedOrders = runCatching { database.trackedOrderDao().getRecent() }.getOrDefault(emptyList())
+            recoverableIntentCount = runCatching { database.orderIntentDao().getRecoverable().size }.getOrDefault(0)
             delay(5_000L)
         }
     }
@@ -64,6 +66,7 @@ fun TradeHistoryPanel() {
                 Text("TRADE DASHBOARD", color = HistoryGold, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                 Text("Active orders: " + activeOrders.size, color = if (activeOrders.isEmpty()) HistoryMuted else HistoryGold, fontSize = 10.sp)
                 Text("History: " + records.size, color = HistoryMuted, fontSize = 10.sp)
+                Text("Recovery: " + recoverableIntentCount, color = if (recoverableIntentCount == 0) HistoryMuted else HistoryGold, fontSize = 10.sp)
             }
             if (records.isEmpty()) {
                 Text("No completed or stopped Demo cycles recorded yet.", color = HistoryMuted, fontSize = 10.sp)
@@ -89,9 +92,9 @@ fun TradeHistoryPanel() {
                     }
                 }
             }
-            if (activeOrders.isNotEmpty()) {
+            if (activeOrders.isNotEmpty() || recoverableIntentCount > 0) {
                 Text(
-                    "Open / partial orders are retained in the local journal. Check OKX Demo before resuming a cycle.",
+                    "Open orders and pending intents are retained locally. Reconcile OKX Demo before resuming a cycle.",
                     color = HistoryGold,
                     fontSize = 9.sp
                 )
