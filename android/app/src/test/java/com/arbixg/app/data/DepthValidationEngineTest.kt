@@ -99,6 +99,32 @@ class DepthValidationEngineTest {
         assertTrue(results.all { it.status == DepthValidationStatus.DEPTH_PASSED_WITH_RULES_GROSS_ONLY })
     }
 
+    @Test fun adverseSlippageBufferReducesDepthBasedFinalAmount() = runBlocking {
+        val now = 1_800_000_000_000L
+        val source = books(now)
+        val engine = DepthValidationEngine(loadOrderBook = { source.getValue(it) })
+        val noBuffer = engine.validateUsdtCandidates(
+            listOf(candidate()), now = now, instrumentRules = rules(), slippageBufferBps = 0.0
+        ).single()
+        val stressed = engine.validateUsdtCandidates(
+            listOf(candidate()), now = now, instrumentRules = rules(), slippageBufferBps = 50.0
+        ).single()
+
+        assertTrue(stressed.finalAmount!! < noBuffer.finalAmount!!)
+        assertEquals(50.0, stressed.slippageBufferBps, 0.0)
+        assertTrue(stressed.message.contains("50.0 bps adverse slippage"))
+    }
+
+    @Test fun rejectsUnreasonableSlippageBuffer() = runBlocking {
+        val engine = DepthValidationEngine(loadOrderBook = { error("Not expected") })
+        try {
+            engine.validateUsdtCandidates(listOf(candidate()), slippageBufferBps = 501.0)
+            fail("Expected invalid slippage buffer to be rejected")
+        } catch (expected: IllegalArgumentException) {
+            assertTrue(expected.message!!.contains("500 bps"))
+        }
+    }
+
     @Test fun doesNotRequestNonUsdtStartingCycles() = runBlocking {
         var requests = 0
         val engine = DepthValidationEngine(loadOrderBook = {
