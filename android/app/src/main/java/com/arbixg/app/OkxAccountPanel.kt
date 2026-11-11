@@ -57,15 +57,15 @@ fun OkxAccountPanel(
     var useDemo by remember { mutableStateOf(true) }
     var expanded by remember { mutableStateOf(false) }
 
-    Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF151F31)), shape = RoundedCornerShape(14.dp)) {
+    Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF111A16)), shape = RoundedCornerShape(14.dp)) {
         Column(
             Modifier.fillMaxWidth().padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(7.dp)
         ) {
-            Text("OKX ACCOUNT · READ-ONLY", color = Color(0xFFE7B95B), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            Text("OKX ACCOUNT · READ-ONLY", color = Color(0xFFD8B45A), fontSize = 11.sp, fontWeight = FontWeight.Bold)
             OutlinedButton(onClick = { expanded = !expanded }) { Text(if (expanded) "Hide account settings" else "Configure OKX account") }
             if (expanded) {
-            Text("Use an API key with Read permission only. Do not enable Trade or Withdraw. Credentials are encrypted with Android Keystore and are never sent to GitHub.", color = Color(0xFF9AA8BC), fontSize = 10.sp)
+            Text("Use an API key with Read permission only. Do not enable Trade or Withdraw. Credentials are encrypted with Android Keystore and are never sent to GitHub.", color = Color(0xFF91A39A), fontSize = 10.sp)
             OutlinedTextField(
                 value = apiKey,
                 onValueChange = { apiKey = it },
@@ -119,7 +119,7 @@ fun OkxAccountPanel(
                 Text(
                     if (useDemo) "Demo environment: simulated account data only."
                     else "Live read-only: retrieves actual balances, fees, Earn holdings and open orders. Use a Read-only API key.",
-                    color = Color(0xFFE7B95B), fontSize = 10.sp
+                    color = Color(0xFFD8B45A), fontSize = 10.sp
                 )
                 OutlinedButton(
                     enabled = !busy && store.isConfigured() && instrumentIds.isNotEmpty(),
@@ -222,27 +222,27 @@ fun OkxAccountPanel(
                     }
                 }
             ) { Text("Delete saved credentials") }
-            Text(status, color = Color(0xFF9AA8BC), fontSize = 10.sp)
+            Text(status, color = Color(0xFF91A39A), fontSize = 10.sp)
             account?.let { data ->
-                Text("${if (data.demoMode) "DEMO ACCOUNT VERIFIED" else "LIVE ACCOUNT · READ-ONLY"} · UID ${data.uid ?: "not supplied"} · account level ${data.accountLevel ?: "not supplied"}", color = Color(0xFF79D6A3), fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                Text("Fee mode: ${when (data.feeType) { "0" -> "fees charged in received currency"; "1" -> "fees charged in Spot quote currency"; else -> "unknown — fee-adjusted simulation disabled" }}", color = Color(0xFFE7B95B), fontSize = 10.sp)
+                Text("${if (data.demoMode) "DEMO ACCOUNT VERIFIED" else "LIVE ACCOUNT · READ-ONLY"} · UID ${data.uid ?: "not supplied"} · account level ${data.accountLevel ?: "not supplied"}", color = Color(0xFF20D68A), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                Text("Fee mode: ${when (data.feeType) { "0" -> "fees charged in received currency"; "1" -> "fees charged in Spot quote currency"; else -> "unknown — fee-adjusted simulation disabled" }}", color = Color(0xFFD8B45A), fontSize = 10.sp)
                 Text("Balances", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                if (data.balances.isEmpty()) Text("No currency balances returned.", color = Color(0xFF9AA8BC), fontSize = 10.sp)
+                if (data.balances.isEmpty()) Text("No currency balances returned.", color = Color(0xFF91A39A), fontSize = 10.sp)
                 data.balances.filter { it.available.toDoubleOrNull()?.let { value -> value > 0.0 } == true || it.frozen.toDoubleOrNull()?.let { value -> value > 0.0 } == true }
                     .take(20).forEach { balance ->
                         Text("${balance.currency}: available ${balance.available} · frozen ${balance.frozen}", color = Color.White, fontSize = 10.sp)
                     }
                 Text("Spot fee tier", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 data.fees.forEach { fee ->
-                    Text("${fee.instrumentId}: group ${fee.groupId} · maker ${fee.makerRate} · taker ${fee.takerRate} · level ${fee.level ?: "not supplied"}", color = Color(0xFF9AA8BC), fontSize = 10.sp)
+                    Text("${fee.instrumentId}: group ${fee.groupId} · maker ${fee.makerRate} · taker ${fee.takerRate} · level ${fee.level ?: "not supplied"}", color = Color(0xFF91A39A), fontSize = 10.sp)
                 }
-                Text("Retrieved ${data.retrievedAtEpochMs}. ${if (data.demoMode) "Demo" else "Live read-only"} data only. Balance and fees must be refreshed before each future simulation.", color = Color(0xFFE7B95B), fontSize = 9.sp)
+                Text("Retrieved ${data.retrievedAtEpochMs}. ${if (data.demoMode) "Demo" else "Live read-only"} data only. Balance and fees must be refreshed before each future simulation.", color = Color(0xFFD8B45A), fontSize = 9.sp)
                 Text("Pending Spot orders · read-only", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 if (pendingOrders.isEmpty()) {
-                    Text("No pending Spot orders were returned.", color = Color(0xFF9AA8BC), fontSize = 10.sp)
+                    Text("No pending Spot orders were returned.", color = Color(0xFF91A39A), fontSize = 10.sp)
                 } else {
                     pendingOrders.take(20).forEach { order ->
-                        Text("${order.instrumentId} · ${order.status} · filled ${order.cumulativeFilledSize}/${order.requestedSize} · remaining ${order.remainingSize}", color = Color(0xFF9AA8BC), fontSize = 10.sp)
+                        Text("${order.instrumentId} · ${order.status} · filled ${order.cumulativeFilledSize}/${order.requestedSize} · remaining ${order.remainingSize}", color = Color(0xFF91A39A), fontSize = 10.sp)
                     }
                 }
             }

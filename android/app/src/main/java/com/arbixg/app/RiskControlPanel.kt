@@ -60,33 +60,33 @@ fun RiskControlPanel() {
 
     val enabled = state?.killSwitchEnabled ?: false
     Card(
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF151F31)),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF111A16)),
         shape = RoundedCornerShape(14.dp)
     ) {
         Column(
             Modifier.fillMaxWidth().padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(7.dp)
         ) {
-            Text("PERSISTENT RISK CONTROL", color = Color(0xFFE7B95B), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            Text("PERSISTENT RISK CONTROL", color = Color(0xFFD8B45A), fontSize = 11.sp, fontWeight = FontWeight.Bold)
             Row {
                 Text("Kill switch", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
                 Spacer(Modifier.width(8.dp))
                 Text(
                     if (enabled) "ON · NEW CYCLES BLOCKED" else "OFF",
-                    color = if (enabled) Color(0xFFFFB36B) else Color(0xFF79D6A3),
+                    color = if (enabled) Color(0xFFFFB36B) else Color(0xFF20D68A),
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold
                 )
             }
             Text(
                 "Daily realized loss: ${state?.dailyRealizedLoss ?: "not recorded"} · UTC date: ${state?.utcDate ?: "—"}",
-                color = Color(0xFF9AA8BC),
+                color = Color(0xFF91A39A),
                 fontSize = 10.sp
             )
             Text(
                 "Persisted reservations: ${activeCycles.size} active cycle(s)" +
                     if (activeCycles.isEmpty()) "" else " · ${activeCycles.take(4).joinToString()}",
-                color = Color(0xFF9AA8BC),
+                color = Color(0xFF91A39A),
                 fontSize = 10.sp
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -128,10 +128,10 @@ fun RiskControlPanel() {
                     }
                 ) { Text("Refresh") }
             }
-            Text(message, color = Color(0xFF9AA8BC), fontSize = 10.sp)
+            Text(message, color = Color(0xFF91A39A), fontSize = 10.sp)
             Text(
                 "Hii inahifadhi kill switch na reservations. Hakuna order submission iliyounganishwa; hakuna oda inayotumwa.",
-                color = Color(0xFFE7B95B),
+                color = Color(0xFFD8B45A),
                 fontSize = 9.sp
             )
         }
