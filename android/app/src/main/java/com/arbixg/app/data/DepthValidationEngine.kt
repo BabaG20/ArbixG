@@ -159,6 +159,9 @@ class DepthValidationEngine(
                     null, null, null, error.message ?: "Depth validation failed"
                 )
             }
-        }
+        }.sortedWith(
+            compareByDescending<DepthValidationItem> { it.netReturnPct != null }
+                .thenByDescending { it.netReturnPct ?: it.grossReturnPct ?: Double.NEGATIVE_INFINITY }
+        )
     }
 }
