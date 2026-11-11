@@ -66,3 +66,47 @@ object OpportunityAssetFilter {
         return OpportunityFilterResult(included, excluded, reasons)
     }
 }
+
+/** Parsers for read-only OKX Earn responses. Unknown/missing amounts are ignored, never guessed. */
+object OkxEarnResponseParser {
+    fun parseSimpleEarn(data: org.json.JSONArray): List<OkxEarnHolding> =
+        parseCurrencyAmounts(data, "Simple Earn")
+
+    fun parseEthStaking(data: org.json.JSONArray): List<OkxEarnHolding> =
+        parseCurrencyAmounts(data, "ETH staking")
+
+    fun parseSolStaking(data: org.json.JSONArray): List<OkxEarnHolding> =
+        parseCurrencyAmounts(data, "SOL staking")
+
+    fun parseOkusd(data: org.json.JSONArray): List<OkxEarnHolding> =
+        parseCurrencyAmounts(data, "OKUSD Earn")
+
+    fun parseOnChainActive(data: org.json.JSONArray): List<OkxEarnHolding> {
+        val holdings = ArrayList<OkxEarnHolding>()
+        for (i in 0 until data.length()) {
+            val order = data.optJSONObject(i) ?: continue
+            val investments = order.optJSONArray("investData") ?: continue
+            for (j in 0 until investments.length()) {
+                val investment = investments.optJSONObject(j) ?: continue
+                val currency = investment.optString("ccy").uppercase()
+                val amount = investment.optString("amt")
+                if (currency.isNotBlank() && OkxEarnHolding(currency, amount, "On-chain Earn").hasPositiveAmount()) {
+                    holdings += OkxEarnHolding(currency, amount, "On-chain Earn")
+                }
+            }
+        }
+        return holdings
+    }
+
+    private fun parseCurrencyAmounts(data: org.json.JSONArray, product: String): List<OkxEarnHolding> {
+        val holdings = ArrayList<OkxEarnHolding>()
+        for (i in 0 until data.length()) {
+            val item = data.optJSONObject(i) ?: continue
+            val currency = item.optString("ccy").uppercase()
+            val amount = item.optString("amt")
+            val holding = OkxEarnHolding(currency, amount, product)
+            if (currency.isNotBlank() && holding.hasPositiveAmount()) holdings += holding
+        }
+        return holdings
+    }
+}
