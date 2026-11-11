@@ -134,8 +134,18 @@ class DemoThreeLegCycleEngine(
                 val submission = submitOrRecover(intent)
                 val acknowledged = when (submission) {
                     is DemoOrderSubmissionCoordinator.Result.Acknowledged -> submission.order
-                    is DemoOrderSubmissionCoordinator.Result.Ambiguous ->
+                    is DemoOrderSubmissionCoordinator.Result.Ambiguous -> {
+                        database.tradeRecordDao().insert(
+                            TradeRecord(
+                                mode = "DEMO",
+                                route = request.legs.joinToString(" → ") { it.instrumentId },
+                                status = "AMBIGUOUS_AT_LEG_" + (index + 1),
+                                createdAtEpochMs = clock(),
+                                realizedPnl = null
+                            )
+                        )
                         return DemoThreeLegCycleResult.Ambiguous(request.cycleId, index, submission.clientOrderId, submission.reason)
+                    }
                     is DemoOrderSubmissionCoordinator.Result.AlreadyExists ->
                         throw CycleStop(index, "Existing intent state " + submission.intent.state + "; reconcile it before starting another cycle.")
                     is DemoOrderSubmissionCoordinator.Result.NotSubmitted ->
