@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -205,8 +206,7 @@ private fun ArbixGApp() {
         }
     }
 
-    MaterialTheme {
-        Surface(modifier = Modifier.fillMaxSize(), color = Ink) {
+    MaterialTheme(colorScheme = darkColorScheme(\n        primary = Green, secondary = Gold, background = Ink, surface = Panel,\n        onPrimary = Ink, onSecondary = Ink, onBackground = Color.White, onSurface = Color.White, outline = Border\n    )) {\n        Surface(modifier = Modifier.fillMaxSize(), color = Ink) {
             Scaffold(
                 containerColor = Ink,
                 topBar = { AppHeader(connection) },
@@ -411,8 +411,7 @@ private fun ScannerScreen(
 
 @Composable
 private fun AccountScreen(
-    snapshot: MarketSnapshot?, onAccountSnapshot: (OkxAccountSnapshot) -> Unit,
-    onAssetExclusions: (OkxAssetExclusionSnapshot) -> Unit
+    snapshot: MarketSnapshot?, onAccountSnapshot: (OkxAccountSnapshot?) -> Unit,\n    onAssetExclusions: (OkxAssetExclusionSnapshot?) -> Unit
 ) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         ScreenTitle("Exchange account", "Muunganisho wa kusoma akaunti ya OKX Demo")
