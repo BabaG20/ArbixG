@@ -141,16 +141,20 @@ private fun ArbixGApp() {
                         candidates = candidatesForValidation,
                         startAmountUsdt = 10.0,
                         instrumentRules = fresh.instrumentRules,
+                        slippageBufferBps = 10.0,
                         feeRatesByInstrument = accountFeeRates,
                         feeType = if (accountFeeRates != null) usableAccount?.feeType?.toIntOrNull() else null
                     )
                     val feeAdjustedCount = depthValidation.count { it.feeModel != null }
-                    depthMessage = if (depthValidation.isEmpty()) {
-                        "No USDT-starting candidate selected for depth validation."
-                    } else if (feeAdjustedCount > 0) {
-                        "Depth checked ${depthValidation.size} USDT cycle(s); ${freshFilter?.excluded?.size ?: 0} excluded by holdings/Earn/open orders. ${feeAdjustedCount} have account-specific taker-fee estimates; net estimates include adverse slippage."
-                    } else {
-                        "Depth checked ${depthValidation.size} USDT cycle(s) using public L2 books and adverse slippage. ${freshFilter?.excluded?.size ?: 0} cycles excluded by account filters. No complete fresh fee snapshot; returns remain gross-only."
+                    depthMessage = when {
+                        candidatesForValidation.isEmpty() && freshFilter?.excluded?.isNotEmpty() == true ->
+                            "All discovered cycles were excluded by current Spot holdings, Earn holdings or open Spot orders."
+                        depthValidation.isEmpty() ->
+                            "No USDT-starting cycle is eligible for depth validation in this snapshot."
+                        feeAdjustedCount > 0 ->
+                            "Depth checked ${depthValidation.size} USDT cycle(s). ${freshFilter?.excluded?.size ?: 0} excluded by holdings/Earn/open orders. ${feeAdjustedCount} have account-specific taker-fee estimates; net estimates include 10 bps adverse slippage per leg."
+                        else ->
+                            "Depth checked ${depthValidation.size} USDT cycle(s) with 10 bps adverse slippage per leg. No complete fresh account fee snapshot; returns remain gross-only."
                     }
                 } catch (depthError: Exception) {
                     depthValidation = emptyList()
@@ -237,6 +241,13 @@ private fun ArbixGApp() {
                             Text("STALE DATA — displayed for reference only. Do not treat candidates as live opportunities.", color = Gold, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                         }
                         snapshot?.let { Text("Tickers: ${it.tickers.size} · stale rejected: ${it.staleTickerCount} · instrument rules: ${it.instrumentRules.size}", color = Muted, fontSize = 10.sp) }
+                        Text(
+                            if (filterResult != null) "Spot + Earn + open-order filter ACTIVE · ${filterResult.excluded.size} cycles excluded"
+                            else "Spot/Earn filter NOT VERIFIED · load a complete read-only account snapshot",
+                            color = if (filterResult != null) Green else Gold,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold
+                        )
                         lastSuccessAt?.let {
                             Text("Last successful refresh: ${DateFormat.getDateTimeInstance().format(Date(it))}", color = Muted, fontSize = 9.sp)
                         }
