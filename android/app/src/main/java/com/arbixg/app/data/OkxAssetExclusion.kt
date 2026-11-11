@@ -19,7 +19,15 @@ data class OkxAssetExclusionSnapshot(
     val complete: Boolean
 ) {
     val blockedBaseCurrencies: Set<String>
-        get() = (spotHeldCurrencies + earnHeldCurrencies).map { it.uppercase() }.toSet()
+        get() {
+            val held = (spotHeldCurrencies + earnHeldCurrencies).map { it.uppercase() }.toSet()
+            // Staked receipt tokens also suppress the underlying asset's cycle.
+            val underlying = buildSet {
+                if ("BETH" in held) add("ETH")
+                if ("OKSOL" in held) add("SOL")
+            }
+            return held + underlying
+        }
 }
 
 data class OpportunityFilterResult(
