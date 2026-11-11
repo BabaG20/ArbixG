@@ -107,7 +107,8 @@ fun OkxAccountPanel(
                         }
                     }
                 ) { Text("Save securely") }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(enabled = !busy, onClick = { useDemo = true }) {
                         Text(if (useDemo) "✓ Demo" else "Demo")
                     }
@@ -206,7 +207,6 @@ fun OkxAccountPanel(
                         }
                     }
                 ) { Text(if (busy) "Checking…" else if (useDemo) "Test Demo account" else "Load Live read-only account") }
-            }
             OutlinedButton(
                 enabled = !busy && store.isConfigured(),
                 onClick = {
