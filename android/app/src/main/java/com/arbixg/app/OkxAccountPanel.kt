@@ -31,6 +31,8 @@ import com.arbixg.app.data.OrderJournal
 import com.arbixg.app.data.OkxCredentials
 import com.arbixg.app.data.OkxPrivateApi
 import com.arbixg.app.data.OkxAccountSnapshot
+import com.arbixg.app.data.OkxAssetExclusionSnapshot
+import com.arbixg.app.data.OkxEarnHolding
 import com.arbixg.app.data.ReconciledOrder
 import com.arbixg.app.data.OrderFillReconciler
 import com.arbixg.app.security.ApiSecretVault
@@ -39,7 +41,8 @@ import kotlinx.coroutines.launch
 @Composable
 fun OkxAccountPanel(
     instrumentIds: List<String>,
-    onAccountSnapshot: (OkxAccountSnapshot?) -> Unit = {}
+    onAccountSnapshot: (OkxAccountSnapshot?) -> Unit = {},
+    onAssetExclusions: (OkxAssetExclusionSnapshot?) -> Unit = {}
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -97,6 +100,7 @@ fun OkxAccountPanel(
                             status = "Credentials encrypted on this device. Ready for demo read-only verification."
                             account = null
                             onAccountSnapshot(null)
+                            onAssetExclusions(null)
                         } catch (error: Exception) {
                             status = "Could not save credentials: ${error.message ?: "unknown error"}"
                         }
@@ -115,6 +119,11 @@ fun OkxAccountPanel(
                                     instrumentIds = instrumentIds,
                                     demoMode = true
                                 ).also(onAccountSnapshot)
+                                val earnHoldings = try {
+                                    api.loadEarnHoldings(demoMode = true)
+                                } catch (_: Exception) {
+                                    null
+                                }
                                 val journal = OrderJournal(ArbixDatabase.getInstance(context).trackedOrderDao())
                                 val recovered = LinkedHashMap<String, ReconciledOrder>()
                                 var refreshFailures = 0
@@ -136,21 +145,45 @@ fun OkxAccountPanel(
                                 }
 
                                 try {
-                                    api.loadPendingSpotOrders(demoMode = true).forEach { incoming ->
+                                    val exchangePendingOrders = api.loadPendingSpotOrders(demoMode = true)
+                                    exchangePendingOrders.forEach { incoming ->
                                         val previous = journal.get(incoming.orderId)
                                         val reconciled = OrderFillReconciler.reconcile(previous, incoming)
                                         journal.save(reconciled)
                                         recovered[reconciled.orderId] = reconciled
                                     }
                                     pendingOrders = recovered.values.sortedByDescending { it.lastExchangeUpdateEpochMs }
-                                    status = "OKX demo read-only check succeeded. ${pendingOrders.size} tracked orders restored/updated; $refreshFailures older-order refreshes unavailable. No orders were submitted or changed."
+                                    if (earnHoldings != null) {
+                                        val spotHeld = account?.balances.orEmpty()
+                                            .filter { it.cash.toBigDecimalOrNull()?.signum() == 1 }
+                                            .map { it.currency.uppercase() }.toSet()
+                                        val earnHeld = earnHoldings.map { it.currency.uppercase() }.toSet()
+                                        onAssetExclusions(
+                                            OkxAssetExclusionSnapshot(
+                                                spotHeldCurrencies = spotHeld,
+                                                earnHeldCurrencies = earnHeld,
+                                                openSpotOrderInstrumentIds = exchangePendingOrders.map { it.instrumentId }.toSet(),
+                                                retrievedAtEpochMs = System.currentTimeMillis(),
+                                                complete = true
+                                            )
+                                        )
+                                    } else {
+                                        onAssetExclusions(null)
+                                    }
+                                    status = if (earnHoldings != null) {
+                                        "OKX read-only snapshot loaded: Spot holdings, Earn holdings and open Spot orders are available for filtering. ${pendingOrders.size} tracked orders restored/updated; $refreshFailures refreshes unavailable. No orders were submitted or changed."
+                                    } else {
+                                        "Spot account loaded, but one or more Earn endpoints were unavailable. Holdings/Earn filtering is NOT marked complete. No orders were submitted or changed."
+                                    }
                                 } catch (orderError: Exception) {
+                                    onAssetExclusions(null)
                                     pendingOrders = recovered.values.sortedByDescending { it.lastExchangeUpdateEpochMs }
                                     status = "Account balance and fees loaded. Order refresh incomplete: ${orderError.message ?: "unknown error"}. Previously saved order records remain on this device."
                                 }
                             } catch (error: Exception) {
                                 account = null
                                 onAccountSnapshot(null)
+                                onAssetExclusions(null)
                                 pendingOrders = emptyList()
                                 status = "Account check failed: ${error.message ?: "unknown error"}"
                             } finally {
@@ -167,6 +200,7 @@ fun OkxAccountPanel(
                         store.clear()
                         account = null
                         onAccountSnapshot(null)
+                        onAssetExclusions(null)
                         pendingOrders = emptyList()
                         status = "Saved OKX credentials deleted from this device."
                     } catch (error: Exception) {
