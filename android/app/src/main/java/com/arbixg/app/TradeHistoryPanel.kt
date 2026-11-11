@@ -4,11 +4,15 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -41,6 +45,7 @@ fun TradeHistoryPanel() {
         .collectAsState(initial = emptyList())
     var trackedOrders by remember { mutableStateOf<List<TrackedOrderEntity>>(emptyList()) }
     var recoverableIntentCount by remember { mutableStateOf(0) }
+    var expanded by remember { mutableStateOf(false) }
 
     LaunchedEffect(database) {
         while (true) {
@@ -71,24 +76,32 @@ fun TradeHistoryPanel() {
             if (records.isEmpty()) {
                 Text("No completed or stopped Demo cycles recorded yet.", color = HistoryMuted, fontSize = 10.sp)
             } else {
-                records.take(3).forEach { record ->
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
-                            Text(record.route, color = Color.White, fontSize = 9.sp, maxLines = 1)
+                TextButton(onClick = { expanded = !expanded }) {
+                    Text(if (expanded) "Hide trade history" else "View full trade history (" + records.size + ")")
+                }
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth().height(if (expanded) 180.dp else 90.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    items(if (expanded) records.take(100) else records.take(3), key = { it.id }) { record ->
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                                Text(record.route, color = Color.White, fontSize = 9.sp, maxLines = 1)
+                                Text(
+                                    record.mode + " · " + record.status + " · " +
+                                        DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(record.createdAtEpochMs)),
+                                    color = HistoryMuted,
+                                    fontSize = 8.sp,
+                                    maxLines = 1
+                                )
+                            }
                             Text(
-                                record.mode + " · " + record.status + " · " +
-                                    DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(record.createdAtEpochMs)),
-                                color = HistoryMuted,
-                                fontSize = 8.sp,
-                                maxLines = 1
+                                record.realizedPnl?.let { String.format("%+.6f", it) } ?: "—",
+                                color = record.realizedPnl?.let { if (it >= 0.0) HistoryGreen else HistoryGold } ?: HistoryMuted,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold
                             )
                         }
-                        Text(
-                            record.realizedPnl?.let { String.format("%+.6f", it) } ?: "—",
-                            color = record.realizedPnl?.let { if (it >= 0.0) HistoryGreen else HistoryGold } ?: HistoryMuted,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold
-                        )
                     }
                 }
             }
