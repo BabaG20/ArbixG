@@ -65,6 +65,14 @@ private val Panel = Color(0xFF151F31)
 private val Gold = Color(0xFFE7B95B)
 private val Muted = Color(0xFF9AA8BC)
 private val Green = Color(0xFF79D6A3)
+private val LossRed = Color(0xFFFF6B6B)
+
+private fun returnColor(value: Double?): Color = when {
+    value == null -> Gold
+    value > 0.0 -> Green
+    value < 0.0 -> LossRed
+    else -> Muted
+}
 
 @Composable
 private fun ArbixGApp() {
@@ -335,24 +343,32 @@ private fun Metric(label: String, value: String) {
 
 @Composable
 private fun CandidateCard(candidate: TriangularCandidate, depth: DepthValidationItem?) {
+    val netReturn = depth?.netReturnPct
+    val netLabel = when {
+        netReturn == null -> "NET RETURN UNAVAILABLE"
+        netReturn > 0.0 -> "ESTIMATED NET PROFIT"
+        netReturn < 0.0 -> "ESTIMATED NET LOSS"
+        else -> "ESTIMATED NET BREAK-EVEN"
+    }
     Card(colors = CardDefaults.cardColors(containerColor = Panel), shape = RoundedCornerShape(13.dp)) {
         Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(candidate.path.joinToString(" → "), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 Spacer(Modifier.weight(1f))
-                Text(String.format("%.4f%% gross", candidate.grossProfitPct), color = Green, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Text(String.format("%.4f%% gross", candidate.grossProfitPct), color = Gold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
             }
+            Text("3 CURRENCIES · 3 TRADES", color = Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold)
             Text(candidate.instruments.joinToString("  ·  "), color = Muted, fontSize = 10.sp)
             when (depth?.status) {
                 DepthValidationStatus.DEPTH_PASSED_GROSS_ONLY, DepthValidationStatus.DEPTH_PASSED_WITH_RULES_GROSS_ONLY -> {
-                    Text("DEPTH PASSED · GROSS ONLY", color = Green, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                    Text("10 USDT → ${String.format("%.8f", depth.finalAmount ?: 0.0)} USDT · gross after slippage ${String.format("%.4f", depth.grossReturnPct ?: 0.0)}%", color = Color.White, fontSize = 10.sp)
-                    Text(depth.message + " Not a verified execution result.", color = Gold, fontSize = 9.sp)
+                    Text("DEPTH PASSED · GROSS ONLY · NOT NET PROFIT", color = Gold, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    Text("10 USDT → ${String.format("%.8f", depth.finalAmount ?: 0.0)} USDT · gross after slippage ${String.format("%.4f", depth.grossReturnPct ?: 0.0)}%", color = returnColor(depth.grossReturnPct), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    Text(depth.message + " Not a verified execution result; fees are not included.", color = Gold, fontSize = 9.sp)
                     depth.dustSummary?.let { Text("Residual dust: $it", color = Muted, fontSize = 9.sp) }
                 }
                 DepthValidationStatus.DEPTH_PASSED_WITH_FEE, DepthValidationStatus.DEPTH_PASSED_WITH_RULES_AND_FEE -> {
-                    Text("DEPTH PASSED · FEE-ADJUSTED ESTIMATE", color = Green, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                    Text("Estimated final ${String.format("%.8f", depth.finalAmount ?: 0.0)} USDT · net after fees + slippage ${String.format("%.4f", depth.netReturnPct ?: 0.0)}%", color = Color.White, fontSize = 10.sp)
+                    Text(netLabel, color = returnColor(netReturn), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    Text("Estimated final ${String.format("%.8f", depth.finalAmount ?: 0.0)} USDT · net after fees + slippage ${String.format("%.4f", netReturn ?: 0.0)}%", color = returnColor(netReturn), fontSize = 10.sp, fontWeight = FontWeight.Bold)
                     Text(depth.message + " Fee model: ${depth.feeModel ?: "supplied estimate"}. This is not a verified execution result; balance reservation, minNotional and order fills are not modeled.", color = Gold, fontSize = 9.sp)
                     depth.dustSummary?.let { Text("Residual dust: $it", color = Muted, fontSize = 9.sp) }
                 }
