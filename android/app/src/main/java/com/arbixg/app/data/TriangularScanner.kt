@@ -27,7 +27,11 @@ object TriangularScanner {
                     for (third in adjacency[second.to].orEmpty()) {
                         if (third.to != start || third.instrumentId == first.instrumentId ||
                             third.instrumentId == second.instrumentId) continue
-                        val path = listOf(start, first.to, second.to, start)
+                        val cycleCurrencies = listOf(start, first.to, second.to)
+                        if (cycleCurrencies.distinct().size != 3) continue
+                        val cycleInstruments = listOf(first.instrumentId, second.instrumentId, third.instrumentId)
+                        if (cycleInstruments.distinct().size != 3) continue
+                        val path = cycleCurrencies + start
                         val gross = first.rate * second.rate * third.rate
                         if (!gross.isFinite() || gross <= 1.0) continue
                         val key = (0..2).map { offset ->
@@ -35,7 +39,7 @@ object TriangularScanner {
                         }.minOrNull() ?: continue
                         val candidate = TriangularCandidate(
                             path = path,
-                            instruments = listOf(first.instrumentId, second.instrumentId, third.instrumentId),
+                            instruments = cycleInstruments,
                             grossProfitPct = (gross - 1.0) * 100.0,
                             feeStatus = "FEE_AND_DEPTH_NOT_VALIDATED"
                         )
