@@ -34,8 +34,10 @@ class TriangularScannerTest {
         assertTrue("Expected at least one gross-positive cycle", candidates.isNotEmpty())
         val candidate = candidates.first()
         assertEquals(3, candidate.instruments.size)
+        assertEquals(3, candidate.instruments.distinct().size)
         assertEquals(candidate.path.first(), candidate.path.last())
         assertEquals(4, candidate.path.size)
+        assertEquals(3, candidate.path.dropLast(1).distinct().size)
         assertTrue(candidate.grossProfitPct > 0.0)
         assertEquals("FEE_AND_DEPTH_NOT_VALIDATED", candidate.feeStatus)
     }
