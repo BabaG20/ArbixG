@@ -62,6 +62,7 @@ class DepthValidationEngine(
 
         val selected = candidates.asSequence()
             .filter { it.path.size == 4 && it.path.first() == "USDT" && it.path.last() == "USDT" }
+            .filter { it.path.dropLast(1).distinct().size == 3 }
             .filter { it.instruments.size == 3 && it.instruments.distinct().size == 3 }
             .sortedByDescending { it.grossProfitPct }
             .take(maxCandidates)
