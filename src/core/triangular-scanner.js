@@ -55,6 +55,8 @@ export function scanTriangularOpportunities(tickers, {
         for (const third of edges.get(second.to) || []) {
           if (third.to !== start) continue;
           const legs = [first, second, third];
+          const path = [start, first.to, second.to, start];
+          if (path.length !== 4 || new Set(path.slice(0, -1)).size !== 3) continue;
           if (new Set(legs.map(edge => edge.instId)).size !== 3) continue;
           const key = cycleKey(legs);
           if (found.has(key)) continue;
@@ -71,7 +73,7 @@ export function scanTriangularOpportunities(tickers, {
           if (netProfitPct !== null && netProfitPct < minNetProfitPct) continue;
           found.set(key, {
             startCurrency: start,
-            path: [start, first.to, second.to, start],
+            path,
             legs,
             grossMultiplier,
             grossProfitPct: (grossMultiplier - 1) * 100,
