@@ -12,6 +12,9 @@ test("finds a three-market cycle and marks fees unknown when not supplied", () =
   const routes = scanTriangularOpportunities(tickers, { startCurrencies: ["USDT"] });
   const route = routes.find(item => item.path.join(">") === "USDT>BTC>ETH>USDT");
   assert.ok(route);
+  assert.equal(route.path.length, 4);
+  assert.equal(new Set(route.path.slice(0, -1)).size, 3);
+  assert.equal(new Set(route.legs.map(leg => leg.instId)).size, 3);
   assert.equal(route.netProfitPct, null);
   assert.equal(route.status, "fee-required");
 });
